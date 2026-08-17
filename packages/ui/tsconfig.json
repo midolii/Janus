@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "@janus/ui/*": ["./src/*"]
+    },
+    "types": ["vite/client"]
+  },
+  "include": [".storybook", "src", "vite.config.ts"]
+}
