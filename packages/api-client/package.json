@@ -1,0 +1,19 @@
+{
+  "name": "@janus/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./client": "./src/client.ts",
+    "./contracts": "./src/contracts.ts",
+    "./transport": "./src/transport.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "vitest": "4.1.10"
+  }
+}

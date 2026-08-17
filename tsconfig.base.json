@@ -16,7 +16,6 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
-    "target": "ES2023",
-    "types": ["vite/client"]
+    "target": "ES2023"
   }
 }
