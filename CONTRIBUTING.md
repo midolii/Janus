@@ -24,6 +24,12 @@ type(scope): description
 
 常用 type 包括 `feat`、`fix`、`refactor`、`test`、`docs`、`build`、`ci` 和 `chore`。
 
+说明文字允许使用中文，例如：
+
+```text
+feat(web): 添加实例列表查询
+```
+
 ## 代码质量
 
 ```bash
@@ -35,3 +41,4 @@ pnpm build
 ```
 
 全仓只使用根目录的 Biome 配置，不额外引入 ESLint 或 Prettier。
+`pnpm check:write` 会同时执行 Tailwind utility class 排序；提交前必须通过 `pnpm check` 与 `pnpm typecheck`。

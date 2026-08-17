@@ -34,4 +34,4 @@
 - `fix(api): handle unauthorized responses`
 - `chore(deps): update tanstack packages`
 
-提交前运行 `pnpm check` 和受影响 workspace 的类型检查、测试与构建。
+提交前必须运行 `pnpm check` 和 `pnpm typecheck`，并运行受影响 workspace 的测试与构建。Tailwind class 必须通过 Biome `useSortedClasses` 校验。

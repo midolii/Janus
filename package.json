@@ -12,7 +12,7 @@
     "build": "turbo run build",
     "build:storybook": "pnpm --filter @janus/ui build:storybook",
     "check": "biome check .",
-    "check:write": "biome check --write .",
+    "check:write": "biome check --write --unsafe --only=lint/nursery/useSortedClasses . && biome check --write .",
     "dev": "turbo run dev --parallel",
     "prepare": "husky",
     "storybook": "pnpm --filter @janus/ui storybook",
