@@ -23,6 +23,15 @@ export function healthQueryOptions(api: JanusApiClient) {
   })
 }
 
+export function systemQueryOptions(api: JanusApiClient) {
+  return queryOptions({
+    queryKey: queryKeys.system,
+    queryFn: ({ signal }) => api.system(signal),
+    staleTime: 60_000,
+    retry: retryApiRequest,
+  })
+}
+
 export function instancesQueryOptions(api: JanusApiClient) {
   return queryOptions({
     queryKey: queryKeys.instances,

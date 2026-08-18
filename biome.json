@@ -6,7 +6,15 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!**/.output", "!**/dist", "!**/storybook-static", "!**/routeTree.gen.ts"]
+    "includes": [
+      "**",
+      "!**/.agents",
+      "!**/.impeccable",
+      "!**/.output",
+      "!**/dist",
+      "!**/storybook-static",
+      "!**/routeTree.gen.ts"
+    ]
   },
   "formatter": {
     "enabled": true,
