@@ -45,7 +45,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <template data-janus-design-contract={designContract} />
+        {import.meta.env.DEV ? <template data-janus-design-contract={designContract} /> : null}
         {children}
         {DevelopmentTools ? (
           <Suspense fallback={null}>

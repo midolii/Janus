@@ -16,6 +16,7 @@ export function getRouter() {
     defaultOptions: {
       queries: {
         refetchOnWindowFocus: false,
+        retry: false,
       },
     },
   })
@@ -33,6 +34,7 @@ export function getRouter() {
     scrollRestoration: true,
     defaultPreload: "intent",
     defaultPreloadStaleTime: 0,
+    defaultNotFoundComponent: () => <p>Not Found</p>,
     Wrap: ({ children }) => (
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     ),
