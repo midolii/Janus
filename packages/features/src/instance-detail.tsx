@@ -5,6 +5,7 @@ import type {
   TaskListResponse,
   TaskResponse,
 } from "@janus/api-client/contracts"
+import { ConfigPagePicker } from "@janus/ui/components/config-page-picker"
 import { DateDisplay } from "@janus/ui/components/date-display"
 import { cn } from "@janus/ui/lib/utils"
 import { useQuery } from "@tanstack/react-query"
@@ -75,7 +76,7 @@ export function InstanceDetail({ api, instance, activeTab }: InstanceDetailProps
 
   return (
     <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-[rgba(248,251,252,0.34)]">
-      <div className="min-h-0 flex-1 overflow-hidden p-4 sm:p-6 lg:p-8">
+      <div className="min-h-0 flex-1 overflow-hidden p-3 sm:p-4 lg:p-8">
         {instanceQuery.isError ? (
           <ErrorPanel title="实例读取失败" detail={instanceQuery.error.message} />
         ) : null}
@@ -158,7 +159,7 @@ function TaskSummary({ tasks }: { tasks: TaskListResponse }) {
   return (
     <dl className="mt-5 grid gap-3 sm:grid-cols-3">
       {taskGroups.slice(0, 3).map((group) => (
-        <div key={group.key} className="rounded-[1rem] bg-slate-900/[0.035] px-4 py-3.5">
+        <div key={group.key} className="rounded-2xl bg-slate-900/[0.035] px-4 py-3.5">
           <dt className="flex items-center gap-2 text-slate-500 text-xs">
             <group.icon className={cn("size-4", group.tone)} aria-hidden="true" />
             {group.label}
@@ -274,6 +275,15 @@ function ConfigPanel({
   const currentGroup =
     selectedGroups.find((group) => group.name === activeGroupName) ?? selectedGroups[0]
   const currentGroupName = currentGroup?.name ?? null
+  const selectedTaskOptionId = getConfigTaskOptionId(selectedMenu.name, selectedTask.name)
+  const pickerSections = schema.menus.map((menu) => ({
+    id: menu.name,
+    label: menu.displayName || menu.name,
+    items: menu.tasks.map((task) => ({
+      id: getConfigTaskOptionId(menu.name, task.name),
+      label: task.displayName || task.name,
+    })),
+  }))
 
   function selectTask(menuName: string, taskName: string, firstGroupName: string | null) {
     setSelectedMenuName(menuName)
@@ -294,8 +304,8 @@ function ConfigPanel({
   return (
     <div className="mx-auto flex h-full min-h-0 max-w-6xl flex-col">
       <PageHeading title="配置浏览" detail="当前为只读模式；写入接口开放后将在此启用编辑。" />
-      <div className="mt-6 grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-5 xl:grid-cols-[15rem_minmax(0,1fr)] xl:grid-rows-1">
-        <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[1.5rem] bg-white/62 p-3 shadow-[0_20px_50px_-38px_rgba(15,23,42,0.55)] backdrop-blur-2xl">
+      <div className="mt-4 grid min-h-0 flex-1 gap-3 lg:mt-6 lg:gap-5 xl:grid-cols-[15rem_minmax(0,1fr)] xl:grid-rows-1">
+        <aside className="hidden min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl bg-white/62 p-3 shadow-[0_20px_50px_-38px_rgba(15,23,42,0.55)] backdrop-blur-2xl xl:flex">
           <p className="px-3 py-2 font-medium text-slate-400 text-xs">配置分区</p>
           <div className="flex min-h-0 gap-1 overflow-x-auto overscroll-contain xl:block xl:flex-1 xl:space-y-1 xl:overflow-y-auto">
             {schema.menus.map((menu, menuIndex) => {
@@ -388,25 +398,46 @@ function ConfigPanel({
           </div>
         </aside>
 
-        <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[1.5rem] bg-white/62 shadow-[0_20px_50px_-38px_rgba(15,23,42,0.55)] backdrop-blur-2xl">
-          <div className="shrink-0 border-slate-900/6 border-b px-5 py-5 sm:px-6">
-            <p
-              className="truncate text-slate-500 text-xs"
-              title={selectedMenu.displayName || selectedMenu.name}
-            >
-              {selectedMenu.displayName || selectedMenu.name}
-            </p>
-            <h2
-              className="mt-1 truncate font-semibold text-lg tracking-[-0.025em]"
-              title={selectedTask.displayName || selectedTask.name}
-            >
-              {selectedTask.displayName || selectedTask.name}
-            </h2>
-            {selectedTask.help ? (
-              <p className="mt-2 whitespace-pre-wrap break-words text-slate-500 text-xs leading-5">
-                {selectedTask.help}
+        <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl bg-white/62 shadow-[0_20px_50px_-38px_rgba(15,23,42,0.55)] backdrop-blur-2xl">
+          <div className="shrink-0 border-slate-900/6 border-b px-4 py-4 sm:px-6 sm:py-5">
+            <ConfigPagePicker
+              className="xl:hidden"
+              sections={pickerSections}
+              value={selectedTaskOptionId}
+              variant="inline"
+              sectionLabel={selectedMenu.displayName || selectedMenu.name}
+              itemLabel={selectedTask.displayName || selectedTask.name}
+              onValueChange={(value) => {
+                for (const menu of schema.menus) {
+                  const task = menu.tasks.find(
+                    (candidate) => getConfigTaskOptionId(menu.name, candidate.name) === value,
+                  )
+                  if (task) {
+                    selectTask(menu.name, task.name, task.groups[0]?.name ?? null)
+                    return
+                  }
+                }
+              }}
+            />
+            <div className="hidden xl:block">
+              <p
+                className="truncate text-slate-500 text-xs"
+                title={selectedMenu.displayName || selectedMenu.name}
+              >
+                {selectedMenu.displayName || selectedMenu.name}
               </p>
-            ) : null}
+              <h2
+                className="mt-1 truncate font-semibold text-lg tracking-[-0.025em]"
+                title={selectedTask.displayName || selectedTask.name}
+              >
+                {selectedTask.displayName || selectedTask.name}
+              </h2>
+              {selectedTask.help ? (
+                <p className="mt-2 whitespace-pre-wrap break-words text-slate-500 text-xs leading-5">
+                  {selectedTask.help}
+                </p>
+              ) : null}
+            </div>
             {selectedGroups.length > 0 ? (
               <div
                 className="mt-4 flex gap-1 overflow-x-auto overscroll-contain rounded-[0.95rem] bg-slate-900/[0.035] p-1"
@@ -439,6 +470,11 @@ function ConfigPanel({
           </div>
 
           <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            {selectedTask.help ? (
+              <p className="whitespace-pre-wrap break-words px-5 pt-4 text-slate-500 text-xs leading-5 sm:px-6 xl:hidden">
+                {selectedTask.help}
+              </p>
+            ) : null}
             {currentGroup ? (
               <ConfigGroupRenderer
                 key={currentGroup.name}
@@ -454,6 +490,10 @@ function ConfigPanel({
       </div>
     </div>
   )
+}
+
+function getConfigTaskOptionId(menuName: string, taskName: string): string {
+  return JSON.stringify([menuName, taskName])
 }
 
 function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string }) {
@@ -857,7 +897,7 @@ function LogBlockItem({
             transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
             className="overflow-hidden"
           >
-            <div className="min-w-max pb-2 font-mono text-[0.72rem] text-slate-300 leading-[1.375rem]">
+            <div className="min-w-max pb-2 font-mono text-[0.72rem] text-slate-300 leading-5.5">
               {block.lines.map((line) => (
                 <LogLine
                   key={line.id}

@@ -1,0 +1,23 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks"
+import * as Stories from "./instance-navigation.stories"
+
+<Meta of={Stories} />
+
+# 实例导航
+
+`InstanceNavigation` 为同一份实例和 Tab 数据提供两种响应式结构：
+
+- 小于 `lg`：仪表盘与实例使用横向列表；进入实例后显示紧凑的四段式 Tab。
+- `lg` 及以上：显示完整侧栏、可展开实例和二级 Tab。
+
+移动端不渲染桌面折叠树，避免展开内容占用主页面高度。实例名称始终允许截断，完整值通过 `title` 与无障碍名称保留。
+
+<Canvas of={Stories.Mobile} />
+
+## 使用约束
+
+- `activeInstance` 为空时不显示实例详情 Tab。
+- `tabs` 的 `id` 应使用稳定的业务标识，不使用翻译后的显示文案。
+- 页面状态由调用方控制，因此 Web 与 Electron 可以共用组件而不共享路由实现。
+
+<Canvas of={Stories.Desktop} />

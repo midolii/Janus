@@ -2,13 +2,13 @@ import type { JanusApiClient } from "@janus/api-client/client"
 import type { TaskListResponse, TaskResponse } from "@janus/api-client/contracts"
 import { Button } from "@janus/ui/components/button"
 import { DateDisplay } from "@janus/ui/components/date-display"
+import { InstanceNavigation } from "@janus/ui/components/instance-navigation"
 import { cn } from "@janus/ui/lib/utils"
 import { useQuery } from "@tanstack/react-query"
 import {
   Activity,
   CheckCircle2,
   ChevronDown,
-  ChevronRight,
   ChevronUp,
   CircleAlert,
   CircleDashed,
@@ -17,7 +17,6 @@ import {
   Code2,
   Cpu,
   Info,
-  LayoutDashboard,
   ListTodo,
   Logs,
   RefreshCw,
@@ -27,7 +26,6 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react"
-import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useState } from "react"
 import { InstanceDetail } from "./instance-detail"
 import type { InstanceDetailTab } from "./instance-detail-tabs"
@@ -48,10 +46,10 @@ type ActiveView =
   | { kind: "instance"; instance: string; tab: InstanceDetailTab }
 
 const instanceTabs = [
-  { key: "overview", label: "概览", icon: Info },
-  { key: "tasks", label: "任务", icon: ListTodo },
-  { key: "config", label: "配置", icon: Settings2 },
-  { key: "logs", label: "日志", icon: Logs },
+  { id: "overview", label: "概览", icon: Info },
+  { id: "tasks", label: "任务", icon: ListTodo },
+  { id: "config", label: "配置", icon: Settings2 },
+  { id: "logs", label: "日志", icon: Logs },
 ] as const
 
 const taskGroups = [
@@ -64,7 +62,6 @@ export function Dashboard({ api, platform }: DashboardProps) {
   const [selectedInstance, setSelectedInstance] = useState<string | null>(null)
   const [expandedInstance, setExpandedInstance] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<ActiveView>({ kind: "dashboard" })
-  const reduceMotion = useReducedMotion()
   const health = useQuery(healthQueryOptions(api))
   const system = useQuery(systemQueryOptions(api))
   const instances = useQuery(instancesQueryOptions(api))
@@ -89,10 +86,16 @@ export function Dashboard({ api, platform }: DashboardProps) {
     ])
   }
 
+  function showInstance(instance: string, tab: InstanceDetailTab = "overview") {
+    setSelectedInstance(instance)
+    setExpandedInstance(instance)
+    setActiveView({ kind: "instance", instance, tab })
+  }
+
   return (
     <div className="app-viewport overflow-hidden p-3 text-slate-950 sm:p-5 lg:p-6">
-      <div className="mx-auto grid h-full max-w-[1540px] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[2rem] border border-white/70 bg-white/48 shadow-[0_28px_80px_-34px_rgba(30,64,83,0.45)] backdrop-blur-[34px] lg:grid-cols-[16.5rem_minmax(0,1fr)] lg:grid-rows-1 lg:rounded-[2.25rem]">
-        <aside className="flex max-h-[45dvh] min-h-0 flex-col overflow-y-auto overscroll-contain border-white/65 border-b bg-white/36 p-4 lg:max-h-none lg:border-r lg:border-b-0 lg:p-5">
+      <div className="mx-auto grid h-full max-w-385 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-4xl border border-white/70 bg-white/48 shadow-[0_28px_80px_-34px_rgba(30,64,83,0.45)] backdrop-blur-[34px] lg:grid-cols-[16.5rem_minmax(0,1fr)] lg:grid-rows-1 lg:rounded-[2.25rem]">
+        <aside className="flex min-h-0 shrink-0 flex-col overflow-hidden border-white/65 border-b bg-white/36 p-3 sm:p-4 md:grid md:grid-cols-[auto_minmax(0,1fr)] md:items-center md:gap-4 lg:flex lg:grid-cols-none lg:items-stretch lg:gap-0 lg:border-r lg:border-b-0 lg:p-5">
           <div className="flex items-center justify-between gap-4 lg:justify-start">
             <div className="flex size-11 items-center justify-center rounded-[0.9rem] bg-slate-950 text-white shadow-[0_10px_24px_-14px_rgba(15,23,42,0.75)]">
               <span className="font-semibold text-lg tracking-[-0.03em]">J</span>
@@ -104,135 +107,35 @@ export function Dashboard({ api, platform }: DashboardProps) {
             <ConnectionBadge className="lg:hidden" online={online} pending={health.isPending} />
           </div>
 
-          <nav className="mt-5 flex gap-2 lg:mt-9 lg:block" aria-label="主导航">
-            <button
-              className={cn(
-                "flex min-h-11 flex-1 items-center gap-3 rounded-[0.9rem] px-3.5 font-medium text-sm transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2 lg:flex-none",
-                activeView.kind === "dashboard"
-                  ? "bg-slate-950 text-white shadow-[0_12px_26px_-18px_rgba(15,23,42,0.8)]"
-                  : "text-slate-600 hover:bg-white/55 hover:text-slate-950",
-              )}
-              type="button"
-              aria-current={activeView.kind === "dashboard" ? "page" : undefined}
-              onClick={() => setActiveView({ kind: "dashboard" })}
-            >
-              <LayoutDashboard className="size-[1.1rem]" aria-hidden="true" />
-              仪表盘
-            </button>
-          </nav>
-
-          <div className="mt-5 min-h-0 overflow-y-auto overscroll-contain lg:mt-7">
-            <p className="px-3.5 font-medium text-slate-400 text-xs">实例</p>
-            <div className="mt-2 space-y-1">
-              {instances.isPending ? <InstanceNavigationSkeleton /> : null}
-              {instanceItems.map((instance) => {
-                const expanded = expandedInstance === instance.name
-                const selected =
-                  activeView.kind === "instance" && activeView.instance === instance.name
-                return (
-                  <div key={instance.name}>
-                    <button
-                      className={cn(
-                        "flex min-h-11 w-full items-center gap-2.5 rounded-[0.9rem] px-3.5 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
-                        selected
-                          ? "bg-white/70 font-medium text-slate-950 shadow-[0_10px_28px_-24px_rgba(15,23,42,0.6)]"
-                          : "text-slate-600 hover:bg-white/45 hover:text-slate-950",
-                      )}
-                      type="button"
-                      aria-expanded={expanded}
-                      onClick={() => {
-                        setSelectedInstance(instance.name)
-                        setExpandedInstance(instance.name)
-                        setActiveView({
-                          kind: "instance",
-                          instance: instance.name,
-                          tab: "overview",
-                        })
-                      }}
-                    >
-                      <span
-                        className={cn(
-                          "size-2 shrink-0 rounded-full",
-                          instance.running ? "bg-emerald-500" : "bg-slate-300",
-                        )}
-                        aria-hidden="true"
-                      />
-                      <span className="min-w-0 flex-1 truncate">实例：{instance.name}</span>
-                      <ChevronRight
-                        className={cn(
-                          "size-3.5 shrink-0 text-slate-400 transition-transform",
-                          expanded && "rotate-90",
-                        )}
-                        aria-hidden="true"
-                      />
-                    </button>
-                    <AnimatePresence initial={false}>
-                      {expanded ? (
-                        <motion.div
-                          key="subtabs"
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{
-                            duration: reduceMotion ? 0 : 0.2,
-                            ease: [0.22, 1, 0.36, 1],
-                          }}
-                          className="overflow-hidden"
-                        >
-                          <div
-                            className="mt-1 ml-4 space-y-0.5 border-slate-900/8 border-l pl-2"
-                            role="tablist"
-                            aria-label={`实例：${instance.name}`}
-                          >
-                            {instanceTabs.map((tab) => {
-                              const active = selected && activeView.tab === tab.key
-                              return (
-                                <button
-                                  key={tab.key}
-                                  className={cn(
-                                    "flex min-h-10 w-full items-center gap-2.5 rounded-[0.75rem] px-3 text-left font-medium text-xs transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
-                                    active
-                                      ? "bg-slate-950 text-white"
-                                      : "text-slate-500 hover:bg-white/50 hover:text-slate-950",
-                                  )}
-                                  type="button"
-                                  role="tab"
-                                  aria-selected={active}
-                                  onClick={() =>
-                                    setActiveView({
-                                      kind: "instance",
-                                      instance: instance.name,
-                                      tab: tab.key,
-                                    })
-                                  }
-                                >
-                                  <tab.icon className="size-3.5" aria-hidden="true" />
-                                  {tab.label}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        </motion.div>
-                      ) : null}
-                    </AnimatePresence>
+          <InstanceNavigation
+            instances={instanceItems}
+            tabs={instanceTabs}
+            dashboardActive={activeView.kind === "dashboard"}
+            activeInstance={activeView.kind === "instance" ? activeView.instance : undefined}
+            activeTab={activeView.kind === "instance" ? activeView.tab : undefined}
+            expandedInstance={expandedInstance ?? undefined}
+            pendingContent={instances.isPending ? <InstanceNavigationSkeleton /> : null}
+            footer={
+              <div className="flex items-center justify-between rounded-2xl bg-white/45 px-3.5 py-3">
+                <div className="flex items-center gap-2.5">
+                  <ShieldCheck className="size-4 text-slate-500" aria-hidden="true" />
+                  <div>
+                    <p className="font-medium text-slate-700 text-xs">受保护连接</p>
+                    <p className="text-[0.68rem] text-slate-400">{platform}</p>
                   </div>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="mt-auto hidden pt-8 lg:block">
-            <div className="flex items-center justify-between rounded-[1rem] bg-white/45 px-3.5 py-3">
-              <div className="flex items-center gap-2.5">
-                <ShieldCheck className="size-4 text-slate-500" aria-hidden="true" />
-                <div>
-                  <p className="font-medium text-slate-700 text-xs">受保护连接</p>
-                  <p className="text-[0.68rem] text-slate-400">{platform}</p>
                 </div>
+                <span className="size-2 rounded-full bg-emerald-500" aria-hidden="true" />
               </div>
-              <span className="size-2 rounded-full bg-emerald-500" aria-hidden="true" />
-            </div>
-          </div>
+            }
+            onSelectDashboard={() => setActiveView({ kind: "dashboard" })}
+            onSelectInstance={(instance) => showInstance(instance)}
+            onSelectTab={(instance, tab) => {
+              const selectedTab = instanceTabs.find((item) => item.id === tab)?.id
+              if (selectedTab) {
+                showInstance(instance, selectedTab)
+              }
+            }}
+          />
         </aside>
 
         {activeView.kind === "dashboard" ? (
@@ -357,7 +260,7 @@ export function Dashboard({ api, platform }: DashboardProps) {
                   </div>
                 </div>
 
-                <div className="border-slate-900/6 border-t xl:max-h-[32rem] xl:overflow-y-auto xl:overscroll-contain">
+                <div className="border-slate-900/6 border-t xl:max-h-128 xl:overflow-y-auto xl:overscroll-contain">
                   {tasks.isPending && activeInstance ? <TaskListSkeleton /> : null}
                   {tasks.isError ? (
                     <EmptyState

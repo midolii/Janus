@@ -128,7 +128,7 @@ function ConfigField({
   const booleanValue = typeof value === "boolean" ? value : undefined
 
   return (
-    <div className="min-w-0 rounded-[1rem] bg-slate-900/[0.035] px-4 py-3.5">
+    <div className="min-w-0 rounded-2xl bg-slate-900/[0.035] px-4 py-3.5">
       <dt className="flex min-w-0 items-start justify-between gap-3">
         <span
           className="min-w-0 flex-1 truncate font-medium text-sm"

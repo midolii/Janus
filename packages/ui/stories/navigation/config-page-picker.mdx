@@ -1,0 +1,19 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks"
+import * as Stories from "./config-page-picker.stories"
+
+<Meta of={Stories} />
+
+# 配置页面选择器
+
+`ConfigPagePicker` 使用原生 `select` 作为交互层，在 iOS 与 Android 上会打开系统选择界面，同时保留 Janus 的视觉摘要。
+
+<Canvas of={Stories.Card} />
+
+## 变体
+
+- `card`：独立放置时使用，带有背景、圆角和模糊材质。
+- `inline`：嵌入已有圆角内容容器的标题区域，不重复创建卡片层级。
+
+选项使用 `section → items` 结构映射为 `optgroup`，所以配置分区不会与具体配置页面混在同一层级。
+
+<Canvas of={Stories.Inline} />
