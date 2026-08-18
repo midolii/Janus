@@ -67,11 +67,20 @@ if [[ ! -d "${release_dir}" ]]; then
   trap cleanup_staging EXIT
 
   cp -a "${repo_root}/apps/web/dist/client/." "${staging_dir}/"
+  # TanStack Start SPA emits `_shell.html`; Caddy serves `index.html` as the history fallback.
+  [[ -s "${staging_dir}/_shell.html" ]] || fail "构建产物缺少 _shell.html"
+  cp -- "${staging_dir}/_shell.html" "${staging_dir}/index.html"
   mv -- "${staging_dir}" "${release_dir}"
   trap - EXIT
 else
   log "Release ${release_id} 已存在，直接复用"
+  if [[ ! -s "${release_dir}/index.html" && -s "${release_dir}/_shell.html" ]]; then
+    cp -- "${release_dir}/_shell.html" "${release_dir}/index.html"
+  fi
 fi
+
+[[ -s "${release_dir}/index.html" ]] || fail "Release 缺少 index.html，拒绝切换 current"
+[[ -d "${release_dir}/assets" ]] || fail "Release 缺少 assets 目录，拒绝切换 current"
 
 next_link="${deploy_root}/.current.${release_id}.$$"
 ln -s "${release_dir}" "${next_link}"
