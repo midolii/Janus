@@ -42,6 +42,15 @@ export function instancesQueryOptions(api: JanusApiClient) {
   })
 }
 
+export function instanceQueryOptions(api: JanusApiClient, instance: string) {
+  return queryOptions({
+    queryKey: queryKeys.instance(instance),
+    queryFn: ({ signal }) => api.instance(instance, signal),
+    staleTime: 5_000,
+    retry: retryApiRequest,
+  })
+}
+
 export function configQueryOptions(api: JanusApiClient, instance: string) {
   return queryOptions({
     queryKey: queryKeys.config(instance),

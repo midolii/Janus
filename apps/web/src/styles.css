@@ -32,6 +32,16 @@ body {
   background-attachment: fixed;
 }
 
+.app-viewport {
+  height: 100vh;
+}
+
+@supports (height: 100dvh) {
+  .app-viewport {
+    height: 100dvh;
+  }
+}
+
 ::selection {
   background: rgb(27 112 164 / 24%);
   color: #0b2535;

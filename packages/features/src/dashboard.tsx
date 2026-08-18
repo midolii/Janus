@@ -35,6 +35,7 @@ import {
 export interface DashboardProps {
   api: JanusApiClient
   platform: "web" | "electron"
+  onOpenInstance?: (instance: string) => void
 }
 
 const taskGroups = [
@@ -43,7 +44,7 @@ const taskGroups = [
   { key: "waiting", label: "等待中", icon: CircleDashed, tone: "text-amber-700" },
 ] as const
 
-export function Dashboard({ api, platform }: DashboardProps) {
+export function Dashboard({ api, platform, onOpenInstance }: DashboardProps) {
   const [selectedInstance, setSelectedInstance] = useState<string | null>(null)
   const health = useQuery(healthQueryOptions(api))
   const system = useQuery(systemQueryOptions(api))
@@ -70,7 +71,7 @@ export function Dashboard({ api, platform }: DashboardProps) {
   }
 
   return (
-    <div className="h-dvh overflow-hidden p-3 text-slate-950 sm:p-5 lg:p-6">
+    <div className="app-viewport overflow-hidden p-3 text-slate-950 sm:p-5 lg:p-6">
       <div className="mx-auto grid h-full max-w-[1540px] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[2rem] border border-white/70 bg-white/48 shadow-[0_28px_80px_-34px_rgba(30,64,83,0.45)] backdrop-blur-[34px] lg:grid-cols-[16.5rem_minmax(0,1fr)] lg:grid-rows-1 lg:rounded-[2.25rem]">
         <aside className="flex min-h-0 flex-col overflow-y-auto overscroll-contain border-white/65 border-b bg-white/36 p-4 lg:border-r lg:border-b-0 lg:p-5">
           <div className="flex items-center justify-between gap-4 lg:justify-start">
@@ -241,25 +242,38 @@ export function Dashboard({ api, platform }: DashboardProps) {
                     {activeInstance ? `${activeInstance} · 自动刷新` : "选择一个实例查看任务"}
                   </p>
                 </div>
-                {instanceItems.length > 0 ? (
-                  <div className="flex w-fit max-w-full gap-1 self-start overflow-x-auto rounded-[0.95rem] bg-slate-900/[0.045] p-1">
-                    {instanceItems.map((instance) => (
-                      <button
-                        key={instance.name}
-                        className={cn(
-                          "min-h-11 shrink-0 rounded-[0.72rem] px-3 font-medium text-xs transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
-                          instance.name === activeInstance
-                            ? "bg-white text-slate-950 shadow-[0_5px_14px_-10px_rgba(15,23,42,0.7)]"
-                            : "text-slate-500 hover:text-slate-950",
-                        )}
-                        type="button"
-                        onClick={() => setSelectedInstance(instance.name)}
-                      >
-                        {instance.name}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
+                <div className="flex max-w-full flex-wrap items-center gap-2 self-start sm:justify-end">
+                  {instanceItems.length > 0 ? (
+                    <div className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-[0.95rem] bg-slate-900/[0.045] p-1">
+                      {instanceItems.map((instance) => (
+                        <button
+                          key={instance.name}
+                          className={cn(
+                            "min-h-11 shrink-0 rounded-[0.72rem] px-3 font-medium text-xs transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
+                            instance.name === activeInstance
+                              ? "bg-white text-slate-950 shadow-[0_5px_14px_-10px_rgba(15,23,42,0.7)]"
+                              : "text-slate-500 hover:text-slate-950",
+                          )}
+                          type="button"
+                          onClick={() => setSelectedInstance(instance.name)}
+                        >
+                          {instance.name}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  {activeInstance && onOpenInstance ? (
+                    <Button
+                      className="min-h-11 rounded-[0.85rem] border-white/80 bg-white/62 px-3.5 text-xs shadow-none hover:bg-white/85"
+                      type="button"
+                      variant="outline"
+                      onClick={() => onOpenInstance(activeInstance)}
+                    >
+                      查看实例
+                      <ChevronRight className="size-3.5" />
+                    </Button>
+                  ) : null}
+                </div>
               </div>
 
               <div className="border-slate-900/6 border-t xl:max-h-[32rem] xl:overflow-y-auto xl:overscroll-contain">
