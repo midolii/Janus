@@ -26,7 +26,7 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { InstanceDetail } from "./instance-detail"
 import type { InstanceDetailTab } from "./instance-detail-tabs"
 import {
@@ -39,9 +39,11 @@ import {
 export interface DashboardProps {
   api: JanusApiClient
   platform: "web" | "electron"
+  activeView: DashboardView
+  onNavigate: (view: DashboardView) => void
 }
 
-type ActiveView =
+export type DashboardView =
   | { kind: "dashboard" }
   | { kind: "instance"; instance: string; tab: InstanceDetailTab }
 
@@ -58,15 +60,15 @@ const taskGroups = [
   { key: "waiting", label: "等待中", icon: CircleDashed, tone: "text-amber-700" },
 ] as const
 
-export function Dashboard({ api, platform }: DashboardProps) {
+export function Dashboard({ api, platform, activeView, onNavigate }: DashboardProps) {
   const [selectedInstance, setSelectedInstance] = useState<string | null>(null)
-  const [expandedInstance, setExpandedInstance] = useState<string | null>(null)
-  const [activeView, setActiveView] = useState<ActiveView>({ kind: "dashboard" })
+  const routedInstance = activeView.kind === "instance" ? activeView.instance : null
+  const [expandedInstance, setExpandedInstance] = useState<string | null>(() => routedInstance)
   const health = useQuery(healthQueryOptions(api))
   const system = useQuery(systemQueryOptions(api))
   const instances = useQuery(instancesQueryOptions(api))
   const instanceItems = instances.data?.items ?? []
-  const activeInstance = selectedInstance ?? instanceItems[0]?.name ?? ""
+  const activeInstance = routedInstance ?? selectedInstance ?? instanceItems[0]?.name ?? ""
   const tasks = useQuery({
     ...tasksQueryOptions(api, activeInstance),
     enabled: Boolean(activeInstance),
@@ -76,6 +78,14 @@ export function Dashboard({ api, platform }: DashboardProps) {
   const runningInstances = instanceItems.filter((instance) => instance.running).length
   const fetching =
     health.isFetching || system.isFetching || instances.isFetching || tasks.isFetching
+
+  useEffect(() => {
+    if (!routedInstance) {
+      return
+    }
+
+    setExpandedInstance((current) => (current === routedInstance ? current : routedInstance))
+  }, [routedInstance])
 
   async function refreshDashboard() {
     await Promise.all([
@@ -89,12 +99,17 @@ export function Dashboard({ api, platform }: DashboardProps) {
   function showInstance(instance: string, tab: InstanceDetailTab = "overview") {
     setSelectedInstance(instance)
     setExpandedInstance(instance)
-    setActiveView({ kind: "instance", instance, tab })
+    onNavigate({ kind: "instance", instance, tab })
   }
 
   function toggleInstance(instance: string) {
     if (expandedInstance === instance) {
       setExpandedInstance(null)
+      return
+    }
+
+    setExpandedInstance(instance)
+    if (activeView.kind === "instance" && activeView.instance === instance) {
       return
     }
 
@@ -136,7 +151,7 @@ export function Dashboard({ api, platform }: DashboardProps) {
                 <span className="size-2 rounded-full bg-emerald-500" aria-hidden="true" />
               </div>
             }
-            onSelectDashboard={() => setActiveView({ kind: "dashboard" })}
+            onSelectDashboard={() => onNavigate({ kind: "dashboard" })}
             onSelectInstance={toggleInstance}
             onSelectTab={(instance, tab) => {
               const selectedTab = instanceTabs.find((item) => item.id === tab)?.id

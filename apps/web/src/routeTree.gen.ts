@@ -10,33 +10,43 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as InstancesInstanceTabRouteImport } from './routes/instances/$instance/$tab'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InstancesInstanceTabRoute = InstancesInstanceTabRouteImport.update({
+  id: '/instances/$instance/$tab',
+  path: '/instances/$instance/$tab',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/instances/$instance/$tab': typeof InstancesInstanceTabRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/instances/$instance/$tab': typeof InstancesInstanceTabRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/instances/$instance/$tab': typeof InstancesInstanceTabRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/instances/$instance/$tab'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/instances/$instance/$tab'
+  id: '__root__' | '/' | '/instances/$instance/$tab'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  InstancesInstanceTabRoute: typeof InstancesInstanceTabRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +58,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/instances/$instance/$tab': {
+      id: '/instances/$instance/$tab'
+      path: '/instances/$instance/$tab'
+      fullPath: '/instances/$instance/$tab'
+      preLoaderRoute: typeof InstancesInstanceTabRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  InstancesInstanceTabRoute: InstancesInstanceTabRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
