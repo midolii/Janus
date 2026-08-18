@@ -78,10 +78,10 @@ export function Dashboard({
       return
     }
 
-    if (expandedInstance !== routedInstance) {
-      onExpandedInstanceChange(routedInstance)
-    }
-  }, [expandedInstance, onExpandedInstanceChange, routedInstance])
+    // Route changes should reveal their instance once. The disclosure state deliberately is not
+    // a dependency: otherwise manually collapsing the active instance immediately reopens it.
+    onExpandedInstanceChange(routedInstance)
+  }, [onExpandedInstanceChange, routedInstance])
 
   async function refreshDashboard() {
     await Promise.all([

@@ -1,7 +1,7 @@
 import type { JanusApiClient } from "@janus/api-client/client"
 import { cn } from "@janus/ui/lib/utils"
 import { useQuery } from "@tanstack/react-query"
-import { ListCollapse, Pause, Play, RefreshCw, Search } from "lucide-react"
+import { ChevronsDownUp, ChevronsUpDown, Pause, Play, RefreshCw, Search } from "lucide-react"
 import { animate, useReducedMotion } from "motion/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { logsQueryOptions } from "../../api/queries"
@@ -33,6 +33,7 @@ export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: st
   const userScrollIntentRef = useRef(false)
   const userScrollIntentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const followSuppressionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const resumeFollowingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const suppressFollowFromLayoutRef = useRef(false)
   const hasInitialScrollRef = useRef(false)
   const reduceMotion = useReducedMotion()
@@ -62,6 +63,10 @@ export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: st
     sections.find((section) => section.blocks.some((block) => block.id === currentBlockId))?.id ??
     null
   const lastRawLine = rawLines.at(-1)
+  const allCollapsed =
+    blocks.length > 0 &&
+    blocks.every((block) => expandedById[block.id] === false) &&
+    sections.every((section) => !section.explicit || expandedSectionsById[section.id] === false)
 
   useEffect(() => {
     if (!latestTail) {
@@ -93,6 +98,10 @@ export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: st
 
   const markUserScrollIntent = useCallback(() => {
     stopScrollAnimation()
+    if (resumeFollowingTimerRef.current) {
+      clearTimeout(resumeFollowingTimerRef.current)
+      resumeFollowingTimerRef.current = null
+    }
     userScrollIntentRef.current = true
     if (userScrollIntentTimerRef.current) {
       clearTimeout(userScrollIntentTimerRef.current)
@@ -210,6 +219,9 @@ export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: st
       if (userScrollIntentTimerRef.current) {
         clearTimeout(userScrollIntentTimerRef.current)
       }
+      if (resumeFollowingTimerRef.current) {
+        clearTimeout(resumeFollowingTimerRef.current)
+      }
     },
     [stopScrollAnimation],
   )
@@ -223,6 +235,10 @@ export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: st
 
   function prepareDisclosureToggle() {
     stopScrollAnimation()
+    if (resumeFollowingTimerRef.current) {
+      clearTimeout(resumeFollowingTimerRef.current)
+      resumeFollowingTimerRef.current = null
+    }
     userScrollIntentRef.current = false
     if (userScrollIntentTimerRef.current) {
       clearTimeout(userScrollIntentTimerRef.current)
@@ -254,16 +270,28 @@ export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: st
     setExpandedSectionsById((current) => ({ ...current, [section.id]: !expanded }))
   }
 
-  function collapseAll() {
+  function toggleAll() {
     if (blocks.length === 0) {
       return
     }
 
     prepareDisclosureToggle()
-    setExpandedById(Object.fromEntries(blocks.map((block) => [block.id, false] as const)))
+    setExpandedById(Object.fromEntries(blocks.map((block) => [block.id, allCollapsed] as const)))
     setExpandedSectionsById(
-      Object.fromEntries(sections.map((section) => [section.id, false] as const)),
+      Object.fromEntries(sections.map((section) => [section.id, allCollapsed] as const)),
     )
+
+    if (allCollapsed) {
+      // Wait for Motion's disclosure animation to expose the final scrollHeight. Restoring
+      // following then reuses the Safari-safe scroll effect instead of measuring mid-layout.
+      resumeFollowingTimerRef.current = setTimeout(
+        () => {
+          resumeFollowingTimerRef.current = null
+          setFollowing(true)
+        },
+        reduceMotion ? 0 : 220,
+      )
+    }
   }
 
   return (
@@ -275,12 +303,16 @@ export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: st
             <button
               className="flex size-11 shrink-0 items-center justify-center rounded-[0.85rem] bg-white/8 text-slate-300 transition-colors hover:bg-white/12 hover:text-white focus-visible:outline-2 focus-visible:outline-blue-400 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/8 disabled:hover:text-slate-300"
               type="button"
-              aria-label="全部收起日志"
-              title="全部收起"
+              aria-label={allCollapsed ? "全部展开日志并定位到底部" : "全部收起日志"}
+              title={allCollapsed ? "全部展开并定位到底部" : "全部收起"}
               disabled={blocks.length === 0}
-              onClick={collapseAll}
+              onClick={toggleAll}
             >
-              <ListCollapse className="size-4" aria-hidden="true" />
+              {allCollapsed ? (
+                <ChevronsUpDown className="size-4" aria-hidden="true" />
+              ) : (
+                <ChevronsDownUp className="size-4" aria-hidden="true" />
+              )}
             </button>
             <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-[0.85rem] bg-white/8 px-3 text-slate-300 focus-within:ring-2 focus-within:ring-blue-400/70">
               <Search className="size-4 shrink-0 text-slate-500" aria-hidden="true" />
