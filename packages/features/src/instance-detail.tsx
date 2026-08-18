@@ -150,7 +150,7 @@ function OverviewFact({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-white/8 px-4 py-4 sm:px-5">
       <dt className="text-blue-100/75 text-xs">{label}</dt>
-      <dd className="mt-1.5 truncate font-semibold text-lg tracking-[-0.025em]">{value}</dd>
+      <dd className="mt-1.5 truncate font-semibold text-lg tracking-tight">{value}</dd>
     </div>
   )
 }
@@ -427,13 +427,13 @@ function ConfigPanel({
                 {selectedMenu.displayName || selectedMenu.name}
               </p>
               <h2
-                className="mt-1 truncate font-semibold text-lg tracking-[-0.025em]"
+                className="mt-1 truncate font-semibold text-lg tracking-tight"
                 title={selectedTask.displayName || selectedTask.name}
               >
                 {selectedTask.displayName || selectedTask.name}
               </h2>
               {selectedTask.help ? (
-                <p className="mt-2 whitespace-pre-wrap break-words text-slate-500 text-xs leading-5">
+                <p className="wrap-break-word mt-2 whitespace-pre-wrap text-slate-500 text-xs leading-5">
                   {selectedTask.help}
                 </p>
               ) : null}
@@ -471,7 +471,7 @@ function ConfigPanel({
 
           <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             {selectedTask.help ? (
-              <p className="whitespace-pre-wrap break-words px-5 pt-4 text-slate-500 text-xs leading-5 sm:px-6 xl:hidden">
+              <p className="wrap-break-word whitespace-pre-wrap px-5 pt-4 text-slate-500 text-xs leading-5 sm:px-6 xl:hidden">
                 {selectedTask.help}
               </p>
             ) : null}
@@ -760,12 +760,12 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
 
         {logs.isError ? (
           <div className="px-5 py-4 text-red-300 text-sm" role="alert">
-            <span className="break-words">日志读取失败：{logs.error.message}</span>
+            <span className="wrap-break-word">日志读取失败：{logs.error.message}</span>
           </div>
         ) : null}
         <div
           ref={viewportRef}
-          className="min-h-0 flex-1 overflow-auto overscroll-contain focus-visible:outline-2 focus-visible:outline-blue-400 focus-visible:outline-offset-[-2px]"
+          className="min-h-0 flex-1 overflow-auto overscroll-contain focus-visible:outline-2 focus-visible:outline-blue-400 focus-visible:-outline-offset-2"
           role="log"
           // biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard users need to focus and scroll the log viewport.
           tabIndex={0}
@@ -856,9 +856,9 @@ function LogBlockItem({
   onToggle: () => void
 }) {
   return (
-    <article>
+    <article className="relative">
       <button
-        className="flex min-h-12 w-full items-center gap-3 px-4 text-left transition-colors hover:bg-white/[0.045] focus-visible:outline-2 focus-visible:outline-blue-400 focus-visible:outline-offset-[-2px]"
+        className="sticky top-0 z-10 flex min-h-12 w-full items-center gap-3 bg-slate-950/95 px-4 text-left backdrop-blur-xl transition-colors hover:bg-slate-900 focus-visible:outline-2 focus-visible:outline-blue-400 focus-visible:-outline-offset-2"
         type="button"
         aria-expanded={expanded}
         aria-controls={`${block.id}-content`}
@@ -872,7 +872,7 @@ function LogBlockItem({
           aria-hidden="true"
         />
         <DateDisplay
-          className="shrink-0 font-mono text-[0.68rem] text-slate-500 tabular-nums"
+          className="shrink-0 font-mono text-[0.68rem] text-slate-400 tabular-nums"
           value={block.timestamp}
           options={{ day: "2-digit", hour: "2-digit", minute: "2-digit", month: "2-digit" }}
         />
@@ -882,7 +882,7 @@ function LogBlockItem({
         >
           {block.title}
         </span>
-        <span className="shrink-0 text-[0.65rem] text-slate-600 tabular-nums">
+        <span className="shrink-0 text-[0.65rem] text-slate-400 tabular-nums">
           {block.lines.length} 行
         </span>
       </button>
@@ -969,7 +969,7 @@ function PageHeading({ title, detail }: { title: string; detail: string }) {
       >
         {title}
       </h2>
-      <p className="mt-1 break-words text-slate-500 text-sm">{detail}</p>
+      <p className="wrap-break-word mt-1 text-slate-500 text-sm">{detail}</p>
     </div>
   )
 }
@@ -995,7 +995,7 @@ function EmptyPanel({ title, detail }: { title: string; detail: string }) {
       <h2 className="mt-4 max-w-full truncate font-medium text-sm" title={title}>
         {title}
       </h2>
-      <p className="mt-1.5 max-w-sm break-words text-slate-500 text-xs leading-5">{detail}</p>
+      <p className="wrap-break-word mt-1.5 max-w-sm text-slate-500 text-xs leading-5">{detail}</p>
     </div>
   )
 }
@@ -1022,7 +1022,7 @@ function ErrorPanel({
         <p className="truncate font-medium text-sm" title={title}>
           {title}
         </p>
-        <p className="mt-0.5 break-words text-red-800/75 text-xs leading-5">{detail}</p>
+        <p className="wrap-break-word mt-0.5 text-red-800/75 text-xs leading-5">{detail}</p>
       </div>
     </div>
   )

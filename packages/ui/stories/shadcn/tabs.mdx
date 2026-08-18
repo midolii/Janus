@@ -1,0 +1,18 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks"
+import * as Stories from "./tabs.stories"
+
+<Meta of={Stories} />
+
+# Tabs
+
+来自 shadcn `base-nova` 注册表的基础 Tabs，底层使用 Base UI。它负责焦点、键盘方向键、ARIA 状态与受控值；项目组件只通过 `className` 扩展视觉表现。
+
+<Canvas of={Stories.Default} />
+
+## 使用约束
+
+- `value` 使用稳定标识，不使用展示文案。
+- 侧栏导航显式设置 `orientation="vertical"`。
+- 业务状态和内容布局放在 `Project` 组件中，不回写到此基础组件。
+
+<Canvas of={Stories.Vertical} />

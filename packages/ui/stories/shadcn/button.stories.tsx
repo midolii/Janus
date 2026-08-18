@@ -2,7 +2,7 @@ import { Button } from "@janus/ui/components/button"
 import preview from "#.storybook/preview"
 
 const meta = preview.meta({
-  title: "Foundations/Button",
+  title: "Shadcn/Button",
   component: Button,
   parameters: {
     layout: "centered",

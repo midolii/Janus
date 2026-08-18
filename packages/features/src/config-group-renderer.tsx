@@ -95,7 +95,7 @@ function DefaultConfigGroupRenderer({ group, config }: ConfigGroupRendererProps)
         {group.displayName || group.name}
       </h3>
       {group.help ? (
-        <p className="mt-1 whitespace-pre-wrap break-words text-slate-500 text-xs leading-5">
+        <p className="wrap-break-word mt-1 whitespace-pre-wrap text-slate-500 text-xs leading-5">
           {group.help}
         </p>
       ) : null}
@@ -157,7 +157,7 @@ function ConfigField({
         </span>
       </dd>
       {field.help ? (
-        <p className="mt-2 whitespace-pre-wrap break-words text-slate-500 text-xs leading-5">
+        <p className="wrap-break-word mt-2 whitespace-pre-wrap text-slate-500 text-xs leading-5">
           {field.help}
         </p>
       ) : null}

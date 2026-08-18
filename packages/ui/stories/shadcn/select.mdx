@@ -1,0 +1,16 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks"
+import * as Stories from "./select.stories"
+
+<Meta of={Stories} />
+
+# Select
+
+来自 shadcn `base-nova` 注册表的自定义 Select，底层使用 Base UI。它提供分组、键盘选择、触摸交互、Portal 弹层与开合动画。
+
+<Canvas of={Stories.Grouped} />
+
+## 使用约束
+
+- 分区使用 `SelectGroup` 与 `SelectLabel`，选项使用 `SelectItem`。
+- 移动端与桌面端共享同一个组件，避免维护两套选择状态。
+- Janus 特有的图标、摘要和玻璃材质放在 `Project/Navigation/ConfigPagePicker` 中。

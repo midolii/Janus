@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it } from "vitest"
 
 describe("ConfigPagePicker", () => {
-  it("preserves configuration hierarchy with native option groups", () => {
+  it("renders a shadcn select trigger instead of a native select", () => {
     const markup = renderToStaticMarkup(
       <ConfigPagePicker
         sections={[
@@ -20,8 +20,10 @@ describe("ConfigPagePicker", () => {
       />,
     )
 
-    expect(markup).toContain('<optgroup label="出击Plus">')
-    expect(markup).toContain('value="farm:main" selected="">主线图-1Plus')
+    expect(markup).toContain('data-slot="select-trigger"')
+    expect(markup).not.toContain("<select")
+    expect(markup).toContain("出击Plus")
+    expect(markup).toContain("主线图-1Plus")
     expect(markup).toContain('aria-label="选择配置页面"')
   })
 })

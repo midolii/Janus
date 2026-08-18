@@ -92,6 +92,15 @@ export function Dashboard({ api, platform }: DashboardProps) {
     setActiveView({ kind: "instance", instance, tab })
   }
 
+  function toggleInstance(instance: string) {
+    if (expandedInstance === instance) {
+      setExpandedInstance(null)
+      return
+    }
+
+    showInstance(instance)
+  }
+
   return (
     <div className="app-viewport overflow-hidden p-3 text-slate-950 sm:p-5 lg:p-6">
       <div className="mx-auto grid h-full max-w-385 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-4xl border border-white/70 bg-white/48 shadow-[0_28px_80px_-34px_rgba(30,64,83,0.45)] backdrop-blur-[34px] lg:grid-cols-[16.5rem_minmax(0,1fr)] lg:grid-rows-1 lg:rounded-[2.25rem]">
@@ -128,7 +137,7 @@ export function Dashboard({ api, platform }: DashboardProps) {
               </div>
             }
             onSelectDashboard={() => setActiveView({ kind: "dashboard" })}
-            onSelectInstance={(instance) => showInstance(instance)}
+            onSelectInstance={toggleInstance}
             onSelectTab={(instance, tab) => {
               const selectedTab = instanceTabs.find((item) => item.id === tab)?.id
               if (selectedTab) {
@@ -205,7 +214,7 @@ export function Dashboard({ api, platform }: DashboardProps) {
                         ? "正在读取实例"
                         : "等待实例接入"}
                   </h2>
-                  <p className="mt-3 max-w-lg break-words text-blue-100/80 text-sm leading-6">
+                  <p className="wrap-break-word mt-3 max-w-lg text-blue-100/80 text-sm leading-6">
                     {activeInstance
                       ? `当前查看 ${activeInstance}，任务状态每 3 秒自动更新。`
                       : "API 已连接后，实例与任务会在这里自动出现。"}
@@ -238,7 +247,7 @@ export function Dashboard({ api, platform }: DashboardProps) {
                   </div>
                   <div className="flex max-w-full flex-wrap items-center gap-2 self-start sm:justify-end">
                     {instanceItems.length > 0 ? (
-                      <div className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-[0.95rem] bg-slate-900/[0.045] p-1">
+                      <div className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-[0.95rem] bg-slate-900/4.5 p-1">
                         {instanceItems.map((instance) => (
                           <button
                             key={instance.name}
@@ -362,7 +371,7 @@ function HeroFact({ label, value }: { label: string; value: string }) {
     <div className="bg-white/8 px-4 py-4 first:border-white/15 first:border-r sm:px-5">
       <dt className="text-blue-100/70 text-xs">{label}</dt>
       <dd
-        className="mt-1.5 truncate font-semibold text-lg tabular-nums tracking-[-0.025em]"
+        className="mt-1.5 truncate font-semibold text-lg tabular-nums tracking-tight"
         title={value}
       >
         {value}
@@ -484,7 +493,7 @@ function EmptyState({
       <h3 className="mt-4 max-w-full truncate font-medium text-sm" title={title}>
         {title}
       </h3>
-      <p className="mt-1.5 max-w-sm break-words text-slate-500 text-xs leading-5">{detail}</p>
+      <p className="wrap-break-word mt-1.5 max-w-sm text-slate-500 text-xs leading-5">{detail}</p>
     </div>
   )
 }

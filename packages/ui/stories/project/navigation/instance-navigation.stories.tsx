@@ -22,6 +22,7 @@ function InteractiveNavigation(
   props: Pick<InstanceNavigationProps, "dashboardActive" | "activeInstance" | "activeTab">,
 ) {
   const [view, setView] = useState(props)
+  const [expandedInstance, setExpandedInstance] = useState(props.activeInstance)
 
   return (
     <div className="flex h-dvh flex-col bg-[linear-gradient(145deg,#e5eef2,#cfdee6)] p-4">
@@ -41,7 +42,7 @@ function InteractiveNavigation(
           dashboardActive={view.dashboardActive}
           activeInstance={view.activeInstance}
           activeTab={view.activeTab}
-          expandedInstance={view.activeInstance}
+          expandedInstance={expandedInstance}
           footer={
             <div className="flex items-center gap-2 rounded-2xl bg-white/50 px-3 py-3 text-slate-600 text-xs">
               <ShieldCheck className="size-4" />
@@ -49,12 +50,19 @@ function InteractiveNavigation(
             </div>
           }
           onSelectDashboard={() => setView({ dashboardActive: true })}
-          onSelectInstance={(instance) =>
+          onSelectInstance={(instance) => {
+            if (expandedInstance === instance) {
+              setExpandedInstance(undefined)
+              return
+            }
+
+            setExpandedInstance(instance)
             setView({ dashboardActive: false, activeInstance: instance, activeTab: "overview" })
-          }
-          onSelectTab={(instance, tab) =>
+          }}
+          onSelectTab={(instance, tab) => {
+            setExpandedInstance(instance)
             setView({ dashboardActive: false, activeInstance: instance, activeTab: tab })
-          }
+          }}
         />
       </div>
     </div>
@@ -62,7 +70,7 @@ function InteractiveNavigation(
 }
 
 const meta = preview.meta({
-  title: "Navigation/InstanceNavigation",
+  title: "Project/Navigation/InstanceNavigation",
   component: InstanceNavigation,
   args: {
     instances,

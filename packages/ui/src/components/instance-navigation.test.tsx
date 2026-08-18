@@ -25,5 +25,7 @@ describe("InstanceNavigation", () => {
     expect(markup).toContain("实例：alas")
     expect(markup.match(/role="tablist"/g)).toHaveLength(2)
     expect(markup.match(/aria-selected="true"/g)).toHaveLength(2)
+    expect(markup.match(/data-slot="tabs-list"/g)).toHaveLength(2)
+    expect(markup.match(/data-slot="tabs-trigger"/g)).toHaveLength(4)
   })
 })

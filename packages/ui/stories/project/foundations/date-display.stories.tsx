@@ -4,7 +4,7 @@ import preview from "#.storybook/preview"
 const exampleDate = new Date("2026-08-18T09:31:08+08:00")
 
 const meta = preview.meta({
-  title: "Foundations/DateDisplay",
+  title: "Project/Foundations/DateDisplay",
   component: DateDisplay,
   parameters: {
     layout: "centered",
