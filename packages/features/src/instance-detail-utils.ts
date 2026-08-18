@@ -31,15 +31,37 @@ export function formatConfigValue(value: unknown): string {
 
 export interface ParsedLogLine {
   id: string
+  content: string
   raw: string
   timestamp: Date | null
+  level: LogLevel | null
+  dateText: string | null
+  timeText: string | null
+  message: string
+  kind: "entry" | "substage"
 }
+
+export type LogLevel = "critical" | "debug" | "error" | "info" | "warning"
 
 export interface LogBlock {
   id: string
   title: string
   timestamp: Date | null
   lines: ParsedLogLine[]
+  hierarchyLevel: 1 | 2
+}
+
+export interface LogSourceLine {
+  content: string
+  timestampMs: number | null
+}
+
+export interface LogSection {
+  id: string
+  title: string
+  timestamp: Date | null
+  blocks: LogBlock[]
+  explicit: boolean
 }
 
 export interface LogSearchMatch {
@@ -48,8 +70,14 @@ export interface LogSearchMatch {
 }
 
 const logTimePattern = /(?:^|\s)(\d{2}):(\d{2}):(\d{2})\.(\d{3})(?:\s|$)/u
-const blockSeparatorPattern = /^[─━═—-]{3,}\s+(.+?)\s+[─━═—-]{3,}$/u
+const blockSeparatorPattern = /^([─━═—-])\1{2,}\s+(.+?)\s+[─━═—-]{3,}$/u
 const angleBlockPattern = /^<{3}\s*(.+?)\s*>{3}$/u
+const outerSectionRulePattern = /^═{15,}$/u
+const memoryLogPattern =
+  /^\s*(DEBUG|INFO|WARN(?:ING)?|ERROR|CRITICAL)\s+(?:(\d{4}-\d{2}-\d{2})\s+)?(\d{2}:\d{2}:\d{2}\.\d{3})\s*[│|]\s?(.*)$/u
+const fileLogPattern =
+  /^\s*\d{4}-\d{2}-\d{2}\s+(\d{2}:\d{2}:\d{2}\.\d{3})\s*\|\s*(DEBUG|INFO|WARN(?:ING)?|ERROR|CRITICAL)\s*\|\s?(.*)$/u
+const ansiCsiPattern = new RegExp(`${String.fromCodePoint(27)}\\[[0-?]*[ -/]*[@-~]`, "gu")
 const halfDayInMilliseconds = 12 * 60 * 60 * 1_000
 
 interface LogLineWithParts extends ParsedLogLine {
@@ -59,14 +87,34 @@ interface LogLineWithParts extends ParsedLogLine {
 /**
  * Converts AzurPilot's in-memory log tail into expandable task blocks.
  *
- * The current API exposes only time-of-day values. We anchor the newest timestamp to the
- * reference date and walk backwards, crossing to the previous day only at a midnight rollover.
- * This keeps the inference isolated so a future full timestamp from the API can replace it.
+ * Structured API entries carry epoch milliseconds. Legacy line-only responses are anchored to
+ * the reference date and walked backwards, crossing to the previous day at midnight rollover.
  */
-export function parseLogBlocks(lines: string[], referenceDate = new Date()): LogBlock[] {
+export function parseLogBlocks(
+  lines: readonly (LogSourceLine | string)[],
+  referenceDate = new Date(),
+): LogBlock[] {
+  return parseLogSections(lines, referenceDate).flatMap((section) => section.blocks)
+}
+
+/**
+ * Preserves AzurPilot's logger.hr hierarchy: level 0 is a three-line outer task banner, while
+ * levels 1–2 become expandable blocks inside that task. Level 3 is a high-frequency substage
+ * marker and stays inline so it cannot flood the interface with tiny one-line blocks.
+ */
+export function parseLogSections(
+  lines: readonly (LogSourceLine | string)[],
+  referenceDate = new Date(),
+): LogSection[] {
   const parsedLines = resolveLogTimestamps(lines, referenceDate)
-  const blocks: LogBlock[] = []
-  let title = "前序日志"
+  const sections: LogSection[] = []
+  const sectionOccurrences = new Map<string, number>()
+  let sectionId = "section-preamble"
+  let sectionTitle = "前序日志"
+  let sectionExplicit = false
+  let blocks: LogBlock[] = []
+  let title = sectionTitle
+  let hierarchyLevel: 1 | 2 = 1
   let blockLines: ParsedLogLine[] = []
 
   function appendBlock() {
@@ -81,23 +129,66 @@ export function parseLogBlocks(lines: string[], referenceDate = new Date()): Log
       title,
       timestamp,
       lines: blockLines,
+      hierarchyLevel,
     })
     blockLines = []
   }
 
-  for (const line of parsedLines) {
-    const blockTitle = getBlockTitle(line.raw)
-    if (blockTitle) {
+  function appendSection() {
+    appendBlock()
+    if (blocks.length === 0) {
+      return
+    }
+
+    sections.push({
+      id: sectionId,
+      title: sectionTitle,
+      timestamp: blocks[0]?.timestamp ?? null,
+      blocks,
+      explicit: sectionExplicit,
+    })
+    blocks = []
+  }
+
+  for (let index = 0; index < parsedLines.length; index += 1) {
+    const line = parsedLines[index]
+    if (!line) {
+      continue
+    }
+
+    const outerTitle = getOuterSectionTitle(parsedLines, index)
+    if (outerTitle) {
+      appendSection()
+      const occurrence = (sectionOccurrences.get(outerTitle) ?? 0) + 1
+      sectionOccurrences.set(outerTitle, occurrence)
+      sectionTitle = outerTitle
+      sectionId = `section-${hashString(`${outerTitle}:${occurrence}`)}`
+      sectionExplicit = true
+      title = "阶段日志"
+      hierarchyLevel = 1
+      index += 2
+      continue
+    }
+
+    const blockMarker = getBlockMarker(line)
+    if (blockMarker) {
       appendBlock()
-      title = blockTitle
+      title = blockMarker.title
+      hierarchyLevel = blockMarker.hierarchyLevel
+      continue
+    }
+
+    const substageTitle = getSubstageTitle(line)
+    if (substageTitle) {
+      blockLines.push({ ...line, kind: "substage", message: substageTitle })
       continue
     }
 
     blockLines.push(line)
   }
 
-  appendBlock()
-  return blocks
+  appendSection()
+  return sections
 }
 
 export function findLogMatches(blocks: LogBlock[], search: string): LogSearchMatch[] {
@@ -181,19 +272,65 @@ export function mergeLogTail(history: string[], incomingTail: string[]): string[
   return history.concat(incomingTail)
 }
 
-function resolveLogTimestamps(lines: string[], referenceDate: Date): LogLineWithParts[] {
+/** Structured equivalent of mergeLogTail. Timestamp participates in identity for repeated lines. */
+export function mergeLogEntryTail(
+  history: LogSourceLine[],
+  incomingTail: LogSourceLine[],
+): LogSourceLine[] {
+  if (incomingTail.length === 0) {
+    return history
+  }
+  if (history.length === 0) {
+    return incomingTail.slice()
+  }
+
+  const isSame = (left: LogSourceLine, right: LogSourceLine) =>
+    left.content === right.content && left.timestampMs === right.timestampMs
+  const maximumOverlap = Math.min(history.length, incomingTail.length)
+  for (let overlap = maximumOverlap; overlap > 0; overlap -= 1) {
+    const historyStart = history.length - overlap
+    let matches = true
+    for (let index = 0; index < overlap; index += 1) {
+      const historyLine = history[historyStart + index]
+      const incomingLine = incomingTail[index]
+      if (!historyLine || !incomingLine || !isSame(historyLine, incomingLine)) {
+        matches = false
+        break
+      }
+    }
+
+    if (matches) {
+      return overlap === incomingTail.length ? history : history.concat(incomingTail.slice(overlap))
+    }
+  }
+
+  return history.concat(incomingTail)
+}
+
+function resolveLogTimestamps(
+  lines: readonly (LogSourceLine | string)[],
+  referenceDate: Date,
+): LogLineWithParts[] {
   const occurrences = new Map<string, number>()
-  const parsed = lines.map<LogLineWithParts>((raw) => {
+  const parsed = lines.map<LogLineWithParts>((source) => {
+    const content = typeof source === "string" ? source : source.content
+    const raw = stripAnsi(content)
+    const timestampMs = typeof source === "string" ? null : source.timestampMs
     const time = parseTimeOfDay(raw)
-    const occurrence = (occurrences.get(raw) ?? 0) + 1
-    occurrences.set(raw, occurrence)
+    const identity = `${raw}:${timestampMs ?? "inferred"}`
+    const occurrence = (occurrences.get(identity) ?? 0) + 1
+    occurrences.set(identity, occurrence)
     return {
       // The tail window can shift while staying at 200 lines. Content + occurrence keeps IDs
       // stable across those refreshes, so the current search match does not jump unexpectedly.
-      id: `line-${hashString(`${raw}:${occurrence}`)}`,
+      id: `line-${hashString(`${identity}:${occurrence}`)}`,
+      content,
       raw,
-      timestamp: null,
+      timestamp:
+        timestampMs === null || !Number.isFinite(timestampMs) ? null : new Date(timestampMs),
       timeOfDay: time,
+      kind: "entry",
+      ...parseLogLine(raw),
     }
   })
 
@@ -204,6 +341,11 @@ function resolveLogTimestamps(lines: string[], referenceDate: Date): LogLineWith
   for (let index = parsed.length - 1; index >= 0; index -= 1) {
     const line = parsed[index]
     if (!line || line.timeOfDay === null) {
+      continue
+    }
+
+    if (line.timestamp) {
+      laterTimeOfDay = line.timeOfDay
       continue
     }
 
@@ -235,13 +377,80 @@ function parseTimeOfDay(line: string): number | null {
   )
 }
 
-function getBlockTitle(line: string): string | null {
-  const value = line.trim()
-  return (
-    blockSeparatorPattern.exec(value)?.[1]?.trim() ??
-    angleBlockPattern.exec(value)?.[1]?.trim() ??
-    null
-  )
+function getOuterSectionTitle(lines: ParsedLogLine[], index: number): string | null {
+  const opening = lines[index]?.raw.trim() ?? ""
+  const title = lines[index + 1]?.raw.trim() ?? ""
+  const closing = lines[index + 2]?.raw.trim() ?? ""
+
+  if (
+    !outerSectionRulePattern.test(opening) ||
+    !outerSectionRulePattern.test(closing) ||
+    !title ||
+    title.length > 120 ||
+    parseLogLine(title).level !== null
+  ) {
+    return null
+  }
+
+  return title
+}
+
+function getBlockMarker(line: ParsedLogLine): { title: string; hierarchyLevel: 1 | 2 } | null {
+  const match = blockSeparatorPattern.exec(line.raw.trim())
+  const title = match?.[2]?.trim()
+  if (!match || !title) {
+    return null
+  }
+
+  return { title, hierarchyLevel: match[1] === "═" ? 1 : 2 }
+}
+
+function getSubstageTitle(line: ParsedLogLine): string | null {
+  return angleBlockPattern.exec(line.message.trim())?.[1]?.trim() ?? null
+}
+
+function parseLogLine(
+  raw: string,
+): Pick<ParsedLogLine, "dateText" | "level" | "message" | "timeText"> {
+  const memoryMatch = memoryLogPattern.exec(raw)
+  if (memoryMatch) {
+    return {
+      level: normalizeLogLevel(memoryMatch[1]),
+      dateText: memoryMatch[2] ?? null,
+      timeText: memoryMatch[3] ?? null,
+      message: memoryMatch[4] ?? "",
+    }
+  }
+
+  const fileMatch = fileLogPattern.exec(raw)
+  if (fileMatch) {
+    return {
+      level: normalizeLogLevel(fileMatch[2]),
+      dateText: raw.trim().slice(0, 10),
+      timeText: fileMatch[1] ?? null,
+      message: fileMatch[3] ?? "",
+    }
+  }
+
+  return { level: null, dateText: null, timeText: null, message: raw }
+}
+
+function normalizeLogLevel(value?: string): LogLevel | null {
+  switch (value?.toUpperCase()) {
+    case "CRITICAL":
+      return "critical"
+    case "DEBUG":
+      return "debug"
+    case "ERROR":
+      return "error"
+    case "INFO":
+      return "info"
+    case "WARN":
+    case "WARNING":
+      return "warning"
+    default:
+      return null
+  }
 }
 
 function hashString(value: string): string {
@@ -251,4 +460,10 @@ function hashString(value: string): string {
     hash = Math.imul(hash, 16_777_619)
   }
   return (hash >>> 0).toString(36)
+}
+
+function stripAnsi(value: string): string {
+  // Rich only emits CSI sequences for the REST ANSI mode. Keeping this local avoids coupling the
+  // log parser to a renderer package while still making structural matching and search stable.
+  return value.replace(ansiCsiPattern, "")
 }

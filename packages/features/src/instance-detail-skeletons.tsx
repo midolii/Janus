@@ -211,28 +211,40 @@ export function ConfigWorkspaceSkeleton() {
 /** Recreates sticky log block headers and their monospaced rows inside the real log viewport. */
 export function LogViewportSkeleton() {
   return (
-    <div className="min-w-full divide-y divide-white/8 py-1" role="status" aria-busy="true">
+    <div className="min-w-full py-1" role="status" aria-busy="true">
       <LoadingStatus label="正在加载实时日志" />
-      {["block-1", "block-2"].map((block, blockIndex) => (
-        <div key={block}>
-          <div className="flex min-h-12 items-center gap-3 px-4">
-            <Skeleton className="size-4 shrink-0 bg-white/8" />
-            <Skeleton className="h-2.5 w-20 shrink-0 bg-white/10" />
-            <Skeleton className={cn("h-2.5 bg-white/12", blockIndex === 0 ? "w-52" : "w-36")} />
-            <Skeleton className="ml-auto h-2.5 w-10 shrink-0 bg-white/8" />
-          </div>
-          {blockIndex === 0 ? (
-            <div className="space-y-2 pb-3 pl-11">
-              {logLineSkeletons.map((line, lineIndex) => (
-                <Skeleton
-                  key={line}
-                  className={cn("h-2.5 bg-white/8", lineIndex % 3 === 0 ? "w-4/5" : "w-3/5")}
-                />
-              ))}
-            </div>
-          ) : null}
+      <div className="border-blue-300/10 border-y">
+        <div className="flex min-h-11 items-center gap-2.5 bg-slate-900/97 px-4">
+          <Skeleton className="size-4 shrink-0 bg-sky-300/10" />
+          <Skeleton className="size-3.5 shrink-0 bg-sky-300/12" />
+          <Skeleton className="h-2.5 w-20 shrink-0 bg-white/8" />
+          <Skeleton className="h-2.5 w-24 bg-sky-200/14" />
+          <Skeleton className="ml-auto h-2.5 w-20 shrink-0 bg-white/8" />
         </div>
-      ))}
+        {["block-1", "block-2"].map((block, blockIndex) => (
+          <div
+            key={block}
+            className="relative before:absolute before:inset-y-0 before:left-4 before:w-px before:bg-sky-300/12"
+          >
+            <div className="flex min-h-12 items-center gap-3 px-4 pl-7">
+              <Skeleton className="size-4 shrink-0 bg-white/8" />
+              <Skeleton className="h-2.5 w-20 shrink-0 bg-white/10" />
+              <Skeleton className={cn("h-2.5 bg-white/12", blockIndex === 0 ? "w-52" : "w-36")} />
+              <Skeleton className="ml-auto h-2.5 w-10 shrink-0 bg-white/8" />
+            </div>
+            {blockIndex === 0 ? (
+              <div className="space-y-2 pb-3 pl-14">
+                {logLineSkeletons.map((line, lineIndex) => (
+                  <Skeleton
+                    key={line}
+                    className={cn("h-2.5 bg-white/8", lineIndex % 3 === 0 ? "w-4/5" : "w-3/5")}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

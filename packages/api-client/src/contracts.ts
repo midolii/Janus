@@ -98,6 +98,13 @@ export interface LogTailResponse {
   lines: string[]
   count: number
   truncated: boolean
+  format?: "ansi" | "plain"
+  entries?: LogLineResponse[]
+}
+
+export interface LogLineResponse {
+  content: string
+  timestampMs: number | null
 }
 
 export interface ErrorResponse {

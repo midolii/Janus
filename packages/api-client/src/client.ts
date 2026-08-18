@@ -54,10 +54,10 @@ export class JanusApiClient {
     })
   }
 
-  logs(instance: string, limit = 200, signal?: AbortSignal) {
+  logs(instance: string, limit = 200, signal?: AbortSignal, format: "ansi" | "plain" = "ansi") {
     return this.transport.request<LogTailResponse>({
       path: `instances/${encodeURIComponent(instance)}/logs`,
-      query: { limit },
+      query: { format, limit },
       signal,
     })
   }

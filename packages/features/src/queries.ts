@@ -11,7 +11,8 @@ export const queryKeys = {
   configSchema: (instance: string, language: string) =>
     ["instances", instance, "config-schema", language] as const,
   tasks: (instance: string) => ["instances", instance, "tasks"] as const,
-  logs: (instance: string, limit: number) => ["instances", instance, "logs", limit] as const,
+  logs: (instance: string, limit: number, format: "ansi" | "plain") =>
+    ["instances", instance, "logs", limit, format] as const,
 }
 
 export function healthQueryOptions(api: JanusApiClient) {
@@ -83,9 +84,10 @@ export function tasksQueryOptions(api: JanusApiClient, instance: string) {
 }
 
 export function logsQueryOptions(api: JanusApiClient, instance: string, limit = 200) {
+  const format = "ansi" as const
   return queryOptions({
-    queryKey: queryKeys.logs(instance, limit),
-    queryFn: ({ signal }) => api.logs(instance, limit, signal),
+    queryKey: queryKeys.logs(instance, limit, format),
+    queryFn: ({ signal }) => api.logs(instance, limit, signal, format),
     refetchInterval: 2_000,
     retry: retryApiRequest,
   })

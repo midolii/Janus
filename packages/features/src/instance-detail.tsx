@@ -39,12 +39,14 @@ import type { InstanceDetailTab } from "./instance-detail-tabs"
 import {
   findLogMatches,
   type LogBlock,
-  mergeLogTail,
+  type LogSection,
+  type LogSourceLine,
+  mergeLogEntryTail,
   normalizeLogSearch,
-  type ParsedLogLine,
-  parseLogBlocks,
+  parseLogSections,
   reconcileLogBlockExpansion,
 } from "./instance-detail-utils"
+import { InstanceLogSection } from "./instance-log-view"
 import {
   configQueryOptions,
   configSchemaQueryOptions,
@@ -541,7 +543,8 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
   const [search, setSearch] = useState("")
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0)
   const [expandedById, setExpandedById] = useState<Record<string, boolean>>({})
-  const [sessionLines, setSessionLines] = useState<string[]>([])
+  const [expandedSectionsById, setExpandedSectionsById] = useState<Record<string, boolean>>({})
+  const [sessionLines, setSessionLines] = useState<LogSourceLine[]>([])
   const viewportRef = useRef<HTMLDivElement>(null)
   const scrollAnimationRef = useRef<{ stop: () => void } | null>(null)
   const programmaticScrollRef = useRef(false)
@@ -555,22 +558,34 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
     ...logsQueryOptions(api, instance, 200),
     refetchInterval: paused ? false : 2_000,
   })
-  const latestTail = logs.data?.lines
+  const latestTail = useMemo<LogSourceLine[] | undefined>(() => {
+    if (!logs.data) {
+      return undefined
+    }
+    if (logs.data.entries) {
+      return logs.data.entries
+    }
+    return logs.data.lines.map((content) => ({ content, timestampMs: null }))
+  }, [logs.data])
   const rawLines = sessionLines
-  const blocks = useMemo(() => parseLogBlocks(rawLines), [rawLines])
+  const sections = useMemo(() => parseLogSections(rawLines), [rawLines])
+  const blocks = useMemo(() => sections.flatMap((section) => section.blocks), [sections])
   const matches = useMemo(() => findLogMatches(blocks, search), [blocks, search])
   const searchActive = normalizeLogSearch(search).length > 0
   const normalizedMatchIndex = matches.length > 0 ? currentMatchIndex % matches.length : 0
   const currentMatch = matches[normalizedMatchIndex] ?? null
   const currentBlockId = currentMatch?.blockId ?? null
   const currentLineId = currentMatch?.lineId ?? null
+  const currentSectionId =
+    sections.find((section) => section.blocks.some((block) => block.id === currentBlockId))?.id ??
+    null
   const lastRawLine = rawLines.at(-1)
 
   useEffect(() => {
     if (!latestTail) {
       return
     }
-    setSessionLines((history) => mergeLogTail(history, latestTail))
+    setSessionLines((history) => mergeLogEntryTail(history, latestTail))
   }, [latestTail])
 
   useEffect(() => {
@@ -580,7 +595,13 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
         blocks.map((block) => block.id),
       ),
     )
-  }, [blocks])
+    setExpandedSectionsById((current) =>
+      reconcileLogBlockExpansion(
+        current,
+        sections.map((section) => section.id),
+      ),
+    )
+  }, [blocks, sections])
 
   const stopScrollAnimation = useCallback(() => {
     scrollAnimationRef.current?.stop()
@@ -663,6 +684,11 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
     setExpandedById((current) =>
       current[currentBlockId] === true ? current : { ...current, [currentBlockId]: true },
     )
+    if (currentSectionId) {
+      setExpandedSectionsById((current) =>
+        current[currentSectionId] === true ? current : { ...current, [currentSectionId]: true },
+      )
+    }
 
     // Expanding changes the target offset. Two animation frames make the measurement reliable
     // after React commits and after WebKit completes layout.
@@ -691,7 +717,7 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
       cancelAnimationFrame(outerFrame)
       cancelAnimationFrame(innerFrame)
     }
-  }, [currentBlockId, currentLineId, scrollViewportTo, searchActive])
+  }, [currentBlockId, currentLineId, currentSectionId, scrollViewportTo, searchActive])
 
   useEffect(
     () => () => {
@@ -713,7 +739,7 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
     setCurrentMatchIndex((current) => (current + direction + matches.length) % matches.length)
   }
 
-  function toggleBlock(block: LogBlock, expanded: boolean) {
+  function prepareDisclosureToggle() {
     stopScrollAnimation()
     userScrollIntentRef.current = false
     if (userScrollIntentTimerRef.current) {
@@ -734,7 +760,16 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
       },
       reduceMotion ? 0 : 240,
     )
+  }
+
+  function toggleBlock(block: LogBlock, expanded: boolean) {
+    prepareDisclosureToggle()
     setExpandedById((current) => ({ ...current, [block.id]: !expanded }))
+  }
+
+  function toggleSection(section: LogSection, expanded: boolean) {
+    prepareDisclosureToggle()
+    setExpandedSectionsById((current) => ({ ...current, [section.id]: !expanded }))
   }
 
   return (
@@ -851,18 +886,20 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
         >
           {blocks.length > 0 ? (
             <div className="min-w-full divide-y divide-white/8 py-1">
-              {blocks.map((block, index) => {
-                const expanded = expandedById[block.id] ?? index === blocks.length - 1
+              {sections.map((section, index) => {
+                const expanded = expandedSectionsById[section.id] ?? index === sections.length - 1
                 return (
-                  <LogBlockItem
-                    key={block.id}
-                    block={block}
+                  <InstanceLogSection
+                    key={section.id}
+                    section={section}
                     currentLineId={currentMatch?.lineId ?? null}
                     expanded={expanded}
+                    expandedByBlockId={expandedById}
                     reduceMotion={Boolean(reduceMotion)}
                     search={search}
                     searchActive={searchActive}
-                    onToggle={() => toggleBlock(block, expanded)}
+                    onToggleBlock={toggleBlock}
+                    onToggleSection={() => toggleSection(section, expanded)}
                   />
                 )
               })}
@@ -885,128 +922,6 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
         </footer>
       </section>
     </div>
-  )
-}
-
-function LogBlockItem({
-  block,
-  currentLineId,
-  expanded,
-  reduceMotion,
-  search,
-  searchActive,
-  onToggle,
-}: {
-  block: LogBlock
-  currentLineId: string | null
-  expanded: boolean
-  reduceMotion: boolean
-  search: string
-  searchActive: boolean
-  onToggle: () => void
-}) {
-  return (
-    <article className="relative">
-      <button
-        className="sticky top-0 z-10 flex min-h-12 w-full items-center gap-3 bg-slate-950/95 px-4 text-left backdrop-blur-xl transition-colors hover:bg-slate-900 focus-visible:outline-2 focus-visible:outline-blue-400 focus-visible:-outline-offset-2"
-        type="button"
-        aria-expanded={expanded}
-        aria-controls={`${block.id}-content`}
-        onClick={onToggle}
-      >
-        <ChevronRight
-          className={cn(
-            "size-4 shrink-0 text-slate-500 transition-transform",
-            expanded && "rotate-90",
-          )}
-          aria-hidden="true"
-        />
-        <DateDisplay
-          className="shrink-0 font-mono text-[0.68rem] text-slate-400 tabular-nums"
-          value={block.timestamp}
-          options={{ day: "2-digit", hour: "2-digit", minute: "2-digit", month: "2-digit" }}
-        />
-        <span
-          className="min-w-0 flex-1 truncate font-medium text-slate-200 text-xs"
-          title={block.title}
-        >
-          {block.title}
-        </span>
-        <span className="shrink-0 text-[0.65rem] text-slate-400 tabular-nums">
-          {block.lines.length} 行
-        </span>
-      </button>
-      <AnimatePresence initial={false}>
-        {expanded ? (
-          <motion.div
-            id={`${block.id}-content`}
-            key="content"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden"
-          >
-            <div className="min-w-max pb-2 font-mono text-[0.72rem] text-slate-300 leading-5.5">
-              {block.lines.map((line) => (
-                <LogLine
-                  key={line.id}
-                  line={line}
-                  current={line.id === currentLineId}
-                  search={search}
-                  searchActive={searchActive}
-                />
-              ))}
-            </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </article>
-  )
-}
-
-function LogLine({
-  current,
-  line,
-  search,
-  searchActive,
-}: {
-  current: boolean
-  line: ParsedLogLine
-  search: string
-  searchActive: boolean
-}) {
-  return (
-    <div
-      id={line.id}
-      aria-hidden={searchActive && !current ? true : undefined}
-      className={cn(
-        "whitespace-pre px-11 transition-[background-color,opacity] duration-200 hover:bg-white/[0.035]",
-        searchActive && !current && "opacity-25",
-        current && "bg-blue-400/10 text-white",
-      )}
-    >
-      {current ? <HighlightedLogText text={line.raw} search={search} /> : line.raw}
-    </div>
-  )
-}
-
-function HighlightedLogText({ text, search }: { text: string; search: string }) {
-  const keyword = normalizeLogSearch(search)
-  const start = text.toLocaleLowerCase("zh-CN").indexOf(keyword)
-  if (!keyword || start < 0) {
-    return text
-  }
-
-  const end = start + keyword.length
-  return (
-    <>
-      {text.slice(0, start)}
-      <mark className="rounded-sm bg-amber-300/90 px-0.5 text-slate-950">
-        {text.slice(start, end)}
-      </mark>
-      {text.slice(end)}
-    </>
   )
 }
 
