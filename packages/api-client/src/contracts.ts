@@ -22,6 +22,18 @@ export interface InstanceListResponse {
   items: InstanceResponse[]
 }
 
+export interface LiveScreenshotStreamResponse {
+  instance: string
+  transport: "websocket"
+  path: string
+  codec: "h264"
+  modes: Array<"auto" | "scrcpy" | "screenshot">
+  defaultMode: "auto" | "scrcpy" | "screenshot"
+  defaultFps: number
+  defaultWidth: number
+  defaultBitrateScale: number
+}
+
 export interface ConfigResponse {
   instance: string
   module: string

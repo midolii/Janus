@@ -1,0 +1,23 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks"
+import * as Stories from "./live-preview-window.stories"
+
+<Meta of={Stories} />
+
+# 实时预览浮窗
+
+`LivePreviewWindow` 只负责浮窗结构与交互，不建立网络连接，也不接触视频帧。业务层可以将 WebSocket、Electron IPC 或测试画布作为 `children` 注入。
+
+<Canvas of={Stories.Floating} />
+
+## 交互约束
+
+- 关闭后保留固定入口；打开后支持视口内拖动、浏览器原生缩放、最小化和最大化。
+- 最小化时业务层应卸载媒体 Surface，主动关闭解码器与连接，避免后台持续占用带宽。
+- Header 只保留单行标题与窗口操作；低频状态和错误固定显示在黑色媒体区域底部。
+- 高频截图帧不得经过 React state、TanStack Query 或持久化 Store。
+- 小屏幕限制为视口内宽度；最大化仍保留圆角安全边距，避免覆盖浏览器系统手势区域。
+- 组件属于 Janus 组合组件，因此放在 `Business/Monitoring`，不与 `Shadcn` 基础组件混放。
+
+<Canvas of={Stories.Launcher} />
+
+<Canvas of={Stories.Minimized} />

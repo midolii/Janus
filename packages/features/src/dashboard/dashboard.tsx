@@ -1,4 +1,5 @@
 import type { JanusApiClient } from "@janus/api-client/client"
+import type { LiveScreenshotRuntime } from "@janus/api-client/live-screenshot"
 import { Button } from "@janus/ui/components/button"
 import { cn } from "@janus/ui/lib/utils"
 import { useQuery } from "@tanstack/react-query"
@@ -22,6 +23,7 @@ import {
 } from "../api/queries"
 import { InstanceDetail } from "../instance-detail/instance-detail"
 import type { InstanceDetailTab } from "../instance-detail/instance-detail-tabs"
+import { LiveScreenshotOverlay } from "../live-screenshot/live-screenshot-overlay"
 import {
   ConnectionBadge,
   EmptyState,
@@ -37,6 +39,7 @@ import { DashboardSidebar } from "./components/dashboard-sidebar"
 
 export interface DashboardProps {
   api: JanusApiClient
+  liveScreenshot: LiveScreenshotRuntime
   platform: "web" | "electron"
   activeView: DashboardView
   expandedInstance: string | null
@@ -50,6 +53,7 @@ export type DashboardView =
 
 export function Dashboard({
   api,
+  liveScreenshot,
   platform,
   activeView,
   expandedInstance,
@@ -317,6 +321,12 @@ export function Dashboard({
           />
         )}
       </div>
+      <LiveScreenshotOverlay
+        api={api}
+        runtime={liveScreenshot}
+        instances={instanceItems}
+        preferredInstance={activeInstance || undefined}
+      />
     </div>
   )
 }

@@ -7,6 +7,7 @@ export const queryKeys = {
   system: ["system"] as const,
   instances: ["instances"] as const,
   instance: (instance: string) => ["instances", instance] as const,
+  liveScreenshot: (instance: string) => ["instances", instance, "live-screenshot"] as const,
   config: (instance: string) => ["instances", instance, "config"] as const,
   configSchema: (instance: string, language: string) =>
     ["instances", instance, "config-schema", language] as const,
@@ -48,6 +49,15 @@ export function instanceQueryOptions(api: JanusApiClient, instance: string) {
     queryKey: queryKeys.instance(instance),
     queryFn: ({ signal }) => api.instance(instance, signal),
     staleTime: 5_000,
+    retry: retryApiRequest,
+  })
+}
+
+export function liveScreenshotQueryOptions(api: JanusApiClient, instance: string) {
+  return queryOptions({
+    queryKey: queryKeys.liveScreenshot(instance),
+    queryFn: ({ signal }) => api.liveScreenshot(instance, signal),
+    staleTime: Number.POSITIVE_INFINITY,
     retry: retryApiRequest,
   })
 }

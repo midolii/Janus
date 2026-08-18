@@ -7,7 +7,7 @@ export function DashboardPage() {
   const matchRoute = useMatchRoute()
   const navigate = useNavigate()
   const router = useRouter()
-  const { api, platform } = router.options.context
+  const { api, liveScreenshot, platform } = router.options.context
   const { expandedInstance, setExpandedInstance } = useNavigationState()
   // The dashboard shell stays mounted above leaf routes. Deriving the view from the committed
   // match keeps the URL authoritative while disclosure state remains purely presentational.
@@ -42,6 +42,7 @@ export function DashboardPage() {
   return (
     <Dashboard
       api={api}
+      liveScreenshot={liveScreenshot}
       platform={platform}
       activeView={view}
       expandedInstance={expandedInstance}

@@ -4,6 +4,7 @@ import type {
   HealthResponse,
   InstanceListResponse,
   InstanceResponse,
+  LiveScreenshotStreamResponse,
   LogTailResponse,
   SystemResponse,
   TaskListResponse,
@@ -28,6 +29,13 @@ export class JanusApiClient {
   instance(instance: string, signal?: AbortSignal) {
     return this.transport.request<InstanceResponse>({
       path: `instances/${encodeURIComponent(instance)}`,
+      signal,
+    })
+  }
+
+  liveScreenshot(instance: string, signal?: AbortSignal) {
+    return this.transport.request<LiveScreenshotStreamResponse>({
+      path: `instances/${encodeURIComponent(instance)}/live-screenshot`,
       signal,
     })
   }

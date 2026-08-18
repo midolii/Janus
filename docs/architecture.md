@@ -70,11 +70,14 @@ packages/ui/
 ## 实时日志与截图
 
 - 低频日志列表可以通过 Query 轮询；日志流建立单独的 stream adapter。
+- 实时截图先通过 `GET /api/v1/instances/{instance}/live-screenshot` 获取稳定的媒体连接描述，再连接描述中的 WebSocket；REST 不承载截图帧。
 - 截图预览不得写入 Query cache、TanStack Store 或逐帧 React state。
 - JPEG/WebP 帧使用独立订阅器和单一 `<img>`/canvas 容器，及时回收旧 Object URL。
 - H.264 使用 WebCodecs/MSE 或现有播放器 adapter，媒体数据不经过 JSON REST。
 - WebSocket/媒体连接由平台 runtime 创建，以便 Web 注入带 Guard 凭据的 URL，Electron 将来改用 preload IPC 或本地连接。
 - 页面卸载、实例切换和网络重连时必须显式停止 decoder、reader、timer 与 socket。
+- Web 运行时优先使用 WebCodecs 解码 scrcpy 的原始 H.264；浏览器不支持或解码失败时自动以 `mode=screenshot` 重连，使用 Safari 兼容的 fragmented MP4 + MSE。
+- 浮窗位于持久 Dashboard 外壳中，路由切换不会重建；最小化或关闭会卸载媒体 Surface 并释放连接。
 
 ## Electron 后续约束
 

@@ -4,9 +4,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { createRouter as createTanStackRouter } from "@tanstack/react-router"
 
 import { routeTree } from "./routeTree.gen"
+import { BrowserLiveScreenshotRuntime } from "./runtime/browser-live-screenshot-runtime"
 
 export interface RouterContext {
   api: JanusApiClient
+  liveScreenshot: BrowserLiveScreenshotRuntime
   platform: "web"
   queryClient: QueryClient
 }
@@ -23,11 +25,15 @@ export function getRouter() {
   const api = new JanusApiClient(
     new FetchTransport({ baseUrl: import.meta.env.VITE_JANUS_API_BASE_URL }),
   )
+  const liveScreenshot = new BrowserLiveScreenshotRuntime({
+    baseUrl: import.meta.env.VITE_JANUS_STREAM_BASE_URL ?? import.meta.env.VITE_JANUS_API_BASE_URL,
+  })
 
   const router = createTanStackRouter({
     routeTree,
     context: {
       api,
+      liveScreenshot,
       platform: "web",
       queryClient,
     },

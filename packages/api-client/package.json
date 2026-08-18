@@ -6,6 +6,7 @@
   "exports": {
     "./client": "./src/client.ts",
     "./contracts": "./src/contracts.ts",
+    "./live-screenshot": "./src/live-screenshot.ts",
     "./transport": "./src/transport.ts"
   },
   "scripts": {
