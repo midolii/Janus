@@ -51,7 +51,7 @@ function MobileInstanceNavigation({
   return (
     <div className="mt-3 sm:flex sm:min-w-0 sm:items-center sm:gap-2 md:mt-0 lg:hidden">
       <nav
-        className="-mx-1 flex min-w-0 gap-1.5 overflow-x-auto overscroll-contain px-1 pb-1 sm:flex-1"
+        className="scrollbar-hidden -mx-1 flex min-w-0 gap-1.5 overflow-x-auto overscroll-contain px-1 pb-1 sm:flex-1"
         aria-label="主导航"
       >
         <button
@@ -94,12 +94,12 @@ function MobileInstanceNavigation({
 
       {activeInstance ? (
         <Tabs
-          className="mt-2 gap-0 sm:mt-0 sm:w-80 sm:shrink-0"
+          className="mt-2 min-h-12 shrink-0 gap-0 sm:mt-0 sm:w-80"
           value={activeTab}
           onValueChange={(tab) => onSelectTab(activeInstance, String(tab))}
         >
           <TabsList
-            className="grid h-auto w-full auto-cols-fr grid-flow-col gap-1 rounded-[0.9rem] bg-slate-900/4.5 p-1"
+            className="grid min-h-12 w-full shrink-0 auto-cols-fr grid-flow-col gap-1 rounded-[0.9rem] bg-slate-900/4.5 p-1"
             aria-label={`实例：${activeInstance}`}
           >
             {tabs.map((tab) => (

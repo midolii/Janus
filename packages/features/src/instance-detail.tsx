@@ -28,6 +28,13 @@ import {
 import { AnimatePresence, animate, motion, useReducedMotion } from "motion/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ConfigGroupRenderer } from "./config-group-renderer"
+import {
+  ConfigWorkspaceSkeleton,
+  LogViewportSkeleton,
+  OverviewHeroSkeleton,
+  TaskSummarySkeleton,
+  TasksContentSkeleton,
+} from "./instance-detail-skeletons"
 import type { InstanceDetailTab } from "./instance-detail-tabs"
 import {
   findLogMatches,
@@ -61,6 +68,7 @@ const taskGroups = [
 
 export function InstanceDetail({ api, instance, activeTab }: InstanceDetailProps) {
   const currentTab = activeTab
+  const reduceMotion = useReducedMotion()
   const instanceQuery = useQuery(instanceQueryOptions(api, instance))
   const tasks = useQuery({
     ...tasksQueryOptions(api, instance),
@@ -78,24 +86,40 @@ export function InstanceDetail({ api, instance, activeTab }: InstanceDetailProps
   return (
     <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-[rgba(248,251,252,0.34)]">
       <div className="min-h-0 flex-1 overflow-hidden p-3 sm:p-4 lg:p-8">
-        {instanceQuery.isError ? (
-          <ErrorPanel title="实例读取失败" detail={instanceQuery.error.message} />
-        ) : null}
-        {currentTab === "overview" ? (
-          <OverviewPanel instanceData={instanceQuery.data} tasks={tasks.data} />
-        ) : null}
-        {currentTab === "tasks" ? (
-          <TasksPanel data={tasks.data} pending={tasks.isPending} error={tasks.error} />
-        ) : null}
-        {currentTab === "config" ? (
-          <ConfigPanel
-            config={config.data}
-            schema={configSchema.data}
-            pending={config.isPending || configSchema.isPending}
-            error={config.error ?? configSchema.error}
-          />
-        ) : null}
-        {currentTab === "logs" ? <LogsPanel key={instance} api={api} instance={instance} /> : null}
+        <AnimatePresence initial={false} mode="wait">
+          <motion.div
+            key={`${instance}:${currentTab}`}
+            className="h-full min-h-0"
+            initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -5 }}
+            transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {instanceQuery.isError ? (
+              <ErrorPanel title="实例读取失败" detail={instanceQuery.error.message} />
+            ) : null}
+            {currentTab === "overview" ? (
+              <OverviewPanel
+                instanceData={instanceQuery.data}
+                instancePending={instanceQuery.isPending}
+                tasks={tasks.data}
+                tasksPending={tasks.isPending}
+              />
+            ) : null}
+            {currentTab === "tasks" ? (
+              <TasksPanel data={tasks.data} pending={tasks.isPending} error={tasks.error} />
+            ) : null}
+            {currentTab === "config" ? (
+              <ConfigPanel
+                config={config.data}
+                schema={configSchema.data}
+                pending={config.isPending || configSchema.isPending}
+                error={config.error ?? configSchema.error}
+              />
+            ) : null}
+            {currentTab === "logs" ? <LogsPanel api={api} instance={instance} /> : null}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </main>
   )
@@ -103,10 +127,14 @@ export function InstanceDetail({ api, instance, activeTab }: InstanceDetailProps
 
 function OverviewPanel({
   instanceData,
+  instancePending,
   tasks,
+  tasksPending,
 }: {
   instanceData?: { name: string; module: string; running: boolean; state: string }
+  instancePending: boolean
   tasks?: TaskListResponse
+  tasksPending: boolean
 }) {
   const activeTasks = (tasks?.running.length ?? 0) + (tasks?.pending.length ?? 0)
 
@@ -114,23 +142,27 @@ function OverviewPanel({
     <div className="mx-auto flex h-full min-h-0 max-w-5xl flex-col">
       <PageHeading title="实例概览" detail="确认运行状态和最近的任务队列。" />
       <div className="mt-6 min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-[1.75rem]">
-        <section className="relative overflow-hidden rounded-[1.75rem] bg-[linear-gradient(130deg,rgba(22,99,140,0.98),rgba(18,61,88,0.96))] p-5 text-white shadow-[0_24px_54px_-32px_rgba(12,61,88,0.8)] sm:p-7">
-          <div className="flex items-center gap-2 text-blue-100 text-sm">
-            {instanceData?.running ? <Wifi className="size-4" /> : <WifiOff className="size-4" />}
-            <span>{instanceData?.running ? "实例正在运行" : "实例当前未运行"}</span>
-          </div>
-          <h2
-            className="mt-5 truncate font-semibold text-3xl tracking-[-0.04em]"
-            title={instanceData?.name ?? "读取中"}
-          >
-            {instanceData?.name ?? "读取中"}
-          </h2>
-          <dl className="mt-7 grid gap-px overflow-hidden rounded-[1.1rem] bg-white/15 sm:grid-cols-3">
-            <OverviewFact label="模块" value={instanceData?.module ?? "—"} />
-            <OverviewFact label="核心状态" value={localizeState(instanceData?.state)} />
-            <OverviewFact label="活动任务" value={String(activeTasks)} />
-          </dl>
-        </section>
+        {instancePending ? (
+          <OverviewHeroSkeleton />
+        ) : (
+          <section className="relative overflow-hidden rounded-[1.75rem] bg-[linear-gradient(130deg,rgba(22,99,140,0.98),rgba(18,61,88,0.96))] p-5 text-white shadow-[0_24px_54px_-32px_rgba(12,61,88,0.8)] sm:p-7">
+            <div className="flex items-center gap-2 text-blue-100 text-sm">
+              {instanceData?.running ? <Wifi className="size-4" /> : <WifiOff className="size-4" />}
+              <span>{instanceData?.running ? "实例正在运行" : "实例当前未运行"}</span>
+            </div>
+            <h2
+              className="mt-5 truncate font-semibold text-3xl tracking-[-0.04em]"
+              title={instanceData?.name ?? "未知实例"}
+            >
+              {instanceData?.name ?? "未知实例"}
+            </h2>
+            <dl className="mt-7 grid gap-px overflow-hidden rounded-[1.1rem] bg-white/15 sm:grid-cols-3">
+              <OverviewFact label="模块" value={instanceData?.module ?? "—"} />
+              <OverviewFact label="核心状态" value={localizeState(instanceData?.state)} />
+              <OverviewFact label="活动任务" value={String(activeTasks)} />
+            </dl>
+          </section>
+        )}
 
         <section className="mt-6 rounded-[1.75rem] bg-white/62 p-5 shadow-[0_20px_50px_-38px_rgba(15,23,42,0.55)] backdrop-blur-2xl sm:p-6">
           <div className="flex items-center justify-between gap-4">
@@ -140,7 +172,8 @@ function OverviewPanel({
             </div>
             <SquareTerminal className="size-5 text-slate-400" aria-hidden="true" />
           </div>
-          {tasks ? <TaskSummary tasks={tasks} /> : <PanelSkeleton rows={3} />}
+          {tasksPending ? <TaskSummarySkeleton /> : null}
+          {tasks ? <TaskSummary tasks={tasks} /> : null}
         </section>
       </div>
     </div>
@@ -186,7 +219,7 @@ function TasksPanel({
       <PageHeading title="任务队列" detail="查看所有活动、等待和停用任务。" />
       <section className="mt-6 min-h-0 flex-1 overflow-hidden rounded-[1.75rem] bg-white/62 shadow-[0_20px_50px_-38px_rgba(15,23,42,0.55)] backdrop-blur-2xl">
         <div className="h-full overflow-y-auto overscroll-contain">
-          {pending ? <PanelSkeleton rows={6} /> : null}
+          {pending ? <TasksContentSkeleton /> : null}
           {error ? <ErrorPanel title="任务读取失败" detail={error.message} compact /> : null}
           {data ? (
             <div className="divide-y divide-slate-900/6">
@@ -260,7 +293,12 @@ function ConfigPanel({
     selectedMenu?.tasks.find((task) => task.name === selectedTaskName) ?? selectedMenu?.tasks[0]
 
   if (pending) {
-    return <PanelSkeleton rows={8} />
+    return (
+      <div className="mx-auto flex h-full min-h-0 max-w-6xl flex-col">
+        <PageHeading title="配置浏览" detail="当前为只读模式；写入接口开放后将在此启用编辑。" />
+        <ConfigWorkspaceSkeleton />
+      </div>
+    )
   }
 
   if (error) {
@@ -305,20 +343,20 @@ function ConfigPanel({
   return (
     <div className="mx-auto flex h-full min-h-0 max-w-6xl flex-col">
       <PageHeading title="配置浏览" detail="当前为只读模式；写入接口开放后将在此启用编辑。" />
-      <div className="mt-4 grid min-h-0 flex-1 gap-3 lg:mt-6 lg:gap-5 xl:grid-cols-[15rem_minmax(0,1fr)] xl:grid-rows-1">
-        <aside className="hidden min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl bg-white/62 p-3 shadow-[0_20px_50px_-38px_rgba(15,23,42,0.55)] backdrop-blur-2xl xl:flex">
+      <div className="mt-4 grid min-h-0 flex-1 gap-3 lg:mt-6 lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:grid-rows-1 lg:gap-5">
+        <aside className="hidden min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl bg-white/62 p-3 shadow-[0_20px_50px_-38px_rgba(15,23,42,0.55)] backdrop-blur-2xl lg:flex">
           <p className="px-3 py-2 font-medium text-slate-400 text-xs">配置分区</p>
-          <div className="flex min-h-0 gap-1 overflow-x-auto overscroll-contain xl:block xl:flex-1 xl:space-y-1 xl:overflow-y-auto">
+          <div className="scrollbar-hidden flex min-h-0 gap-1 overflow-x-auto overscroll-contain lg:block lg:flex-1 lg:space-y-1 lg:overflow-y-auto">
             {schema.menus.map((menu, menuIndex) => {
               const selected = menu.name === selectedMenu.name
               const expanded = menu.name === openMenuName
               const submenuId = `config-menu-${menuIndex}`
               const menuLabel = menu.displayName || menu.name
               return (
-                <div key={menu.name} className="min-w-0 shrink-0 xl:w-full">
+                <div key={menu.name} className="min-w-0 shrink-0 lg:w-full">
                   <button
                     className={cn(
-                      "flex min-h-11 min-w-0 items-center gap-2 rounded-[0.85rem] px-3 text-left font-medium text-sm transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2 xl:w-full",
+                      "flex min-h-11 min-w-0 items-center gap-2 rounded-[0.85rem] px-3 text-left font-medium text-sm transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2 lg:w-full",
                       selected
                         ? "bg-slate-950 text-white"
                         : "text-slate-600 hover:bg-white/70 hover:text-slate-950",
@@ -402,7 +440,7 @@ function ConfigPanel({
         <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl bg-white/62 shadow-[0_20px_50px_-38px_rgba(15,23,42,0.55)] backdrop-blur-2xl">
           <div className="shrink-0 border-slate-900/6 border-b px-4 py-4 sm:px-6 sm:py-5">
             <ConfigPagePicker
-              className="xl:hidden"
+              className="lg:hidden"
               sections={pickerSections}
               value={selectedTaskOptionId}
               variant="inline"
@@ -420,7 +458,7 @@ function ConfigPanel({
                 }
               }}
             />
-            <div className="hidden xl:block">
+            <div className="hidden lg:block">
               <p
                 className="truncate text-slate-500 text-xs"
                 title={selectedMenu.displayName || selectedMenu.name}
@@ -441,7 +479,7 @@ function ConfigPanel({
             </div>
             {selectedGroups.length > 0 ? (
               <div
-                className="mt-4 flex gap-1 overflow-x-auto overscroll-contain rounded-[0.95rem] bg-slate-900/[0.035] p-1"
+                className="scrollbar-hidden mt-4 flex gap-1 overflow-x-auto overscroll-contain rounded-[0.95rem] bg-slate-900/[0.035] p-1"
                 aria-label="配置块"
                 role="tablist"
               >
@@ -472,7 +510,7 @@ function ConfigPanel({
 
           <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             {selectedTask.help ? (
-              <p className="wrap-break-word whitespace-pre-wrap px-5 pt-4 text-slate-500 text-xs leading-5 sm:px-6 xl:hidden">
+              <p className="wrap-break-word whitespace-pre-wrap px-5 pt-4 text-slate-500 text-xs leading-5 sm:px-6 lg:hidden">
                 {selectedTask.help}
               </p>
             ) : null}
@@ -829,9 +867,11 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
                 )
               })}
             </div>
+          ) : logs.isPending ? (
+            <LogViewportSkeleton />
           ) : (
             <div className="flex min-h-64 items-center justify-center px-6 text-center text-slate-500 text-sm">
-              {logs.isPending ? "正在读取日志…" : "日志暂时为空"}
+              日志暂时为空
             </div>
           )}
         </div>
@@ -980,20 +1020,6 @@ function PageHeading({ title, detail }: { title: string; detail: string }) {
         {title}
       </h2>
       <p className="wrap-break-word mt-1 text-slate-500 text-sm">{detail}</p>
-    </div>
-  )
-}
-
-function PanelSkeleton({ rows }: { rows: number }) {
-  return (
-    <div className="space-y-4 p-6" role="status" aria-label="正在加载">
-      {Array.from({ length: rows }, (_, index) => `skeleton-${index}`).map((key) => (
-        <div key={key} className="flex items-center gap-3">
-          <div className="size-3 animate-pulse rounded-full bg-slate-900/8" />
-          <div className="h-3 flex-1 animate-pulse rounded-full bg-slate-900/8" />
-          <div className="h-3 w-20 animate-pulse rounded-full bg-slate-900/5" />
-        </div>
-      ))}
     </div>
   )
 }

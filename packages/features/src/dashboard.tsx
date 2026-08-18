@@ -118,7 +118,7 @@ export function Dashboard({ api, platform, activeView, onNavigate }: DashboardPr
 
   return (
     <div className="app-viewport overflow-hidden p-3 text-slate-950 sm:p-5 lg:p-6">
-      <div className="mx-auto grid h-full max-w-385 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-4xl border border-white/70 bg-white/48 shadow-[0_28px_80px_-34px_rgba(30,64,83,0.45)] backdrop-blur-[34px] lg:grid-cols-[16.5rem_minmax(0,1fr)] lg:grid-rows-1 lg:rounded-[2.25rem]">
+      <div className="mx-auto grid h-full max-w-385 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-4xl border border-white/70 bg-white/48 shadow-[0_28px_80px_-34px_rgba(30,64,83,0.45)] backdrop-blur-[34px] lg:grid-cols-[15rem_minmax(0,1fr)] lg:grid-rows-1 lg:rounded-[2.25rem]">
         <aside className="flex min-h-0 shrink-0 flex-col overflow-hidden border-white/65 border-b bg-white/36 p-3 sm:p-4 md:grid md:grid-cols-[auto_minmax(0,1fr)] md:items-center md:gap-4 lg:flex lg:grid-cols-none lg:items-stretch lg:gap-0 lg:border-r lg:border-b-0 lg:p-5">
           <div className="flex items-center justify-between gap-4 lg:justify-start">
             <div className="flex size-11 items-center justify-center rounded-[0.9rem] bg-slate-950 text-white shadow-[0_10px_24px_-14px_rgba(15,23,42,0.75)]">
@@ -262,7 +262,7 @@ export function Dashboard({ api, platform, activeView, onNavigate }: DashboardPr
                   </div>
                   <div className="flex max-w-full flex-wrap items-center gap-2 self-start sm:justify-end">
                     {instanceItems.length > 0 ? (
-                      <div className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-[0.95rem] bg-slate-900/4.5 p-1">
+                      <div className="scrollbar-hidden flex w-fit max-w-full gap-1 overflow-x-auto rounded-[0.95rem] bg-slate-900/4.5 p-1">
                         {instanceItems.map((instance) => (
                           <button
                             key={instance.name}

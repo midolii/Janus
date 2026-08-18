@@ -4,6 +4,19 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Horizontal tabs remain touch-scrollable without exposing platform-specific scrollbars. */
+.scrollbar-hidden,
+[role="tablist"] {
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar,
+[role="tablist"]::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 @theme inline {
   --font-sans: "Geist Variable", sans-serif;
   --font-heading: var(--font-sans);
