@@ -70,7 +70,7 @@ function InteractiveNavigation(
 }
 
 const meta = preview.meta({
-  title: "Project/Navigation/InstanceNavigation",
+  title: "Business/Navigation/InstanceNavigation",
   component: InstanceNavigation,
   args: {
     instances,

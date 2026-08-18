@@ -44,7 +44,7 @@ function InteractivePicker({ variant }: { variant: "card" | "inline" }) {
 }
 
 const meta = preview.meta({
-  title: "Project/Navigation/ConfigPagePicker",
+  title: "Business/Navigation/ConfigPagePicker",
   component: ConfigPagePicker,
   args: {
     sections,

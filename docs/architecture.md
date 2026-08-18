@@ -23,6 +23,44 @@ apps/electron（未来）使用同一组共享包，并替换运行时 transport
 
 `packages/ui` 只包含通用组件和 token，不依赖路由、业务查询或平台 API。Storybook 使用 CSF Next factory 写法（`defineMain`、`definePreview`、`preview.meta`、`meta.story`）。
 
+## 目录组织
+
+目录采用“工作区按职责、工作区内部按领域”的混合方式。路由文件只负责 URL 参数和页面入口，业务实现不平铺到 `apps/web/src`。
+
+```text
+apps/web/src/
+├── components/                 # Web 运行时、Provider 与页面适配器
+└── routes/                     # TanStack Router 路由入口；保持轻量
+
+packages/features/src/
+├── api/                        # Query keys 与 query options
+├── dashboard/
+│   ├── components/             # 仅供仪表盘使用的展示组件
+│   └── dashboard.tsx           # 仪表盘编排入口
+└── instance-detail/
+    ├── components/             # 概览、任务、配置、日志等面板
+    ├── instance-detail.tsx      # 查询编排与标签页分发
+    ├── instance-detail-tabs.ts  # 领域类型
+    └── instance-detail-utils.ts # 纯函数与解析逻辑
+
+packages/ui/
+├── src/components/             # shadcn 基础组件与无业务依赖的公共组件
+└── stories/
+    ├── components/shadcn/      # shadcn 基础组件 stories / MDX
+    └── business/               # Janus 组合组件 stories / MDX
+```
+
+新增代码遵循以下规则：
+
+- 路由文件超过参数校验与适配职责时，将实现下沉到 `packages/features`。
+- 一个领域入口负责请求与状态编排；可独立描述、测试或写 Story 的区域拆为 `components`。
+- 领域私有组件与领域同目录放置，不通过包级 exports 暴露；跨领域复用后才提升到公共层。
+- 测试与被测文件就近放置，避免单独的全局 tests 目录失去上下文。
+- 内部代码直接导入具体文件，不新增层层转发的 barrel；包外只通过 `package.json#exports` 访问稳定入口。
+- Storybook 的文件路径与 `title` 同时表达分类，避免 shadcn 基础组件和 Janus 业务组件重名。
+
+参考：[TanStack Router 文件式路由](https://tanstack.com/router/latest/docs/routing/file-based-routing)、[Storybook 组件层级](https://storybook.js.org/docs/writing-stories/naming-components-and-hierarchy)、[shadcn monorepo](https://ui.shadcn.com/docs/monorepo)。
+
 ## Web 请求与鉴权边界
 
 默认 API base URL 为同源 `/api/v1`，`FetchTransport` 固定发送 JSON Accept 并使用 `credentials: "include"`。如果 Guard/Caddy 返回登录 HTML，客户端会将其识别为非 JSON 响应，而不会把登录页面误当业务数据。

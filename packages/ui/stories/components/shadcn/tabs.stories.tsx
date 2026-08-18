@@ -2,7 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@janus/ui/components/t
 import preview from "#.storybook/preview"
 
 const meta = preview.meta({
-  title: "Shadcn/Tabs",
+  title: "Components/Shadcn/Tabs",
   component: Tabs,
   parameters: {
     layout: "centered",

@@ -8,7 +8,7 @@ import type {
 import { cn } from "@janus/ui/lib/utils"
 import { Check, LockKeyhole } from "lucide-react"
 import type { ComponentType } from "react"
-import { formatConfigValue, getConfigValue } from "./instance-detail-utils"
+import { formatConfigValue, getConfigValue } from "../instance-detail-utils"
 
 export interface ConfigGroupRendererProps {
   moduleName: string

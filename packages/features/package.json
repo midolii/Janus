@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./dashboard": "./src/dashboard.tsx",
-    "./instance-detail": "./src/instance-detail.tsx",
-    "./instance-detail-tabs": "./src/instance-detail-tabs.ts",
-    "./queries": "./src/queries.ts"
+    "./dashboard": "./src/dashboard/dashboard.tsx",
+    "./instance-detail": "./src/instance-detail/instance-detail.tsx",
+    "./instance-detail-tabs": "./src/instance-detail/instance-detail-tabs.ts",
+    "./queries": "./src/api/queries.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

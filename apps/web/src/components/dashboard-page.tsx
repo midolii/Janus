@@ -1,5 +1,6 @@
 import { Dashboard, type DashboardView } from "@janus/features/dashboard"
 import { useNavigate, useRouter } from "@tanstack/react-router"
+import { useNavigationState } from "./navigation-state"
 
 export interface DashboardPageProps {
   view: DashboardView
@@ -9,6 +10,7 @@ export function DashboardPage({ view }: DashboardPageProps) {
   const navigate = useNavigate()
   const router = useRouter()
   const { api, platform } = router.options.context
+  const { expandedInstance, setExpandedInstance } = useNavigationState()
 
   function navigateTo(nextView: DashboardView) {
     if (nextView.kind === "dashboard") {
@@ -25,5 +27,14 @@ export function DashboardPage({ view }: DashboardPageProps) {
     })
   }
 
-  return <Dashboard api={api} platform={platform} activeView={view} onNavigate={navigateTo} />
+  return (
+    <Dashboard
+      api={api}
+      platform={platform}
+      activeView={view}
+      expandedInstance={expandedInstance}
+      onExpandedInstanceChange={setExpandedInstance}
+      onNavigate={navigateTo}
+    />
+  )
 }

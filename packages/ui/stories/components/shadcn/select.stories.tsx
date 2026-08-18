@@ -10,7 +10,7 @@ import {
 import preview from "#.storybook/preview"
 
 const meta = preview.meta({
-  title: "Shadcn/Select",
+  title: "Components/Shadcn/Select",
   component: Select,
   parameters: {
     layout: "centered",

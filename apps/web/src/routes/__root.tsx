@@ -1,5 +1,6 @@
 import { createRootRouteWithContext, HeadContent, Scripts } from "@tanstack/react-router"
 import { DevelopmentSupport } from "../components/development-support"
+import { NavigationStateProvider } from "../components/navigation-state"
 import type { RouterContext } from "../router"
 import appCss from "../styles.css?url"
 
@@ -39,7 +40,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <DevelopmentSupport />
-        {children}
+        <NavigationStateProvider>{children}</NavigationStateProvider>
         <Scripts />
       </body>
     </html>

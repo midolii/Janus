@@ -4,8 +4,8 @@ import AnsiImport from "ansi-to-react"
 import { ChevronRight, Layers3 } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
 import type { ComponentType } from "react"
-import type { LogBlock, LogLevel, LogSection, ParsedLogLine } from "./instance-detail-utils"
-import { normalizeLogSearch } from "./instance-detail-utils"
+import type { LogBlock, LogLevel, LogSection, ParsedLogLine } from "../instance-detail-utils"
+import { normalizeLogSearch } from "../instance-detail-utils"
 
 const levelLabels: Record<LogLevel, string> = {
   critical: "CRITICAL",
