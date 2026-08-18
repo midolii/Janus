@@ -5,6 +5,7 @@ import {
   getConfigValue,
   mergeLogTail,
   parseLogBlocks,
+  reconcileLogBlockExpansion,
 } from "./instance-detail-utils"
 
 describe("instance detail utilities", () => {
@@ -84,5 +85,27 @@ describe("instance detail utilities", () => {
       "line-3",
       "service restarted",
     ])
+  })
+
+  it("keeps an observed log block expanded when a new block arrives", () => {
+    const initial = reconcileLogBlockExpansion({}, ["earlier", "observed"])
+
+    expect(initial).toEqual({ earlier: false, observed: true })
+    expect(reconcileLogBlockExpansion(initial, ["earlier", "observed", "new"])).toEqual({
+      earlier: false,
+      observed: true,
+      new: true,
+    })
+  })
+
+  it("preserves an explicit collapsed choice while opening a new log block", () => {
+    const current = { earlier: false, observed: false }
+
+    expect(reconcileLogBlockExpansion(current, ["earlier", "observed", "new"])).toEqual({
+      earlier: false,
+      observed: false,
+      new: true,
+    })
+    expect(reconcileLogBlockExpansion(current, ["earlier", "observed"])).toBe(current)
   })
 })

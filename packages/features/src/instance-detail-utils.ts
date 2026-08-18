@@ -118,6 +118,36 @@ export function normalizeLogSearch(value: string): string {
 }
 
 /**
+ * Gives the initial tail block its default expansion and preserves that choice when later blocks
+ * arrive. New blocks open by default, but they never replace expansion choices already shown to
+ * the user—including an older block the user explicitly collapsed.
+ */
+export function reconcileLogBlockExpansion(
+  current: Record<string, boolean>,
+  blockIds: readonly string[],
+): Record<string, boolean> {
+  if (blockIds.length === 0) {
+    return current
+  }
+
+  const initializing = Object.keys(current).length === 0
+  let next = current
+
+  for (const [index, blockId] of blockIds.entries()) {
+    if (Object.hasOwn(current, blockId)) {
+      continue
+    }
+
+    if (next === current) {
+      next = { ...current }
+    }
+    next[blockId] = initializing ? index === blockIds.length - 1 : true
+  }
+
+  return next
+}
+
+/**
  * Extends the in-page log history from a sliding backend tail without duplicating its overlap.
  * The backend currently returns at most 200 lines, so overlap detection is bounded by that small
  * window even when the browser session has accumulated many more lines.

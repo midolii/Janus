@@ -36,6 +36,7 @@ import {
   normalizeLogSearch,
   type ParsedLogLine,
   parseLogBlocks,
+  reconcileLogBlockExpansion,
 } from "./instance-detail-utils"
 import {
   configQueryOptions,
@@ -533,6 +534,15 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
     }
     setSessionLines((history) => mergeLogTail(history, latestTail))
   }, [latestTail])
+
+  useEffect(() => {
+    setExpandedById((current) =>
+      reconcileLogBlockExpansion(
+        current,
+        blocks.map((block) => block.id),
+      ),
+    )
+  }, [blocks])
 
   const stopScrollAnimation = useCallback(() => {
     scrollAnimationRef.current?.stop()
