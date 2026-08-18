@@ -51,7 +51,7 @@ export function LiveScreenshotOverlay({
     fallbackInstance
   const descriptor = useQuery({
     ...liveScreenshotQueryOptions(api, activeInstance),
-    enabled: open && !minimized && Boolean(activeInstance),
+    enabled: open && Boolean(activeInstance),
   })
   const displayedStatus: LiveScreenshotStatus = descriptor.isError
     ? {

@@ -2,9 +2,30 @@ const MAX_QUEUE_ITEMS = 24
 const MAX_QUEUE_BYTES = 12 * 1024 * 1024
 const KEEP_BUFFER_SECONDS = 20
 
+interface MediaSourceLike extends EventTarget {
+  addSourceBuffer: (mime: string) => SourceBuffer
+}
+
+interface MediaSourceConstructorLike {
+  new (): MediaSourceLike
+  isTypeSupported: (mime: string) => boolean
+}
+
+interface MediaSourceEnvironment {
+  ManagedMediaSource?: MediaSourceConstructorLike
+  MediaSource?: MediaSourceConstructorLike
+}
+
+/** iPhone Safari exposes ManagedMediaSource where desktop browsers expose MediaSource. */
+export function resolveMediaSourceConstructor(
+  environment: MediaSourceEnvironment = globalThis as unknown as MediaSourceEnvironment,
+) {
+  return environment.ManagedMediaSource ?? environment.MediaSource
+}
+
 export class MseH264Player {
   readonly #video: HTMLVideoElement
-  readonly #mediaSource: MediaSource
+  readonly #mediaSource: MediaSourceLike
   readonly #objectUrl: string
   readonly #onPlaying: () => void
   readonly #onFatalError: (error: Error) => void
@@ -21,15 +42,19 @@ export class MseH264Player {
     onPlaying: () => void
     onFatalError: (error: Error) => void
   }) {
-    if (!("MediaSource" in globalThis) || !MediaSource.isTypeSupported(options.mime)) {
+    const MediaSourceConstructor = resolveMediaSourceConstructor()
+    if (!MediaSourceConstructor?.isTypeSupported(options.mime)) {
       throw new Error(`当前浏览器不支持 ${options.mime}`)
     }
 
     this.#video = options.video
+    // WebKit only enables ManagedMediaSource on iPhone when remote playback is disabled or an
+    // alternate AirPlay URL is supplied. This WebSocket stream has no remotely playable URL.
+    this.#video.disableRemotePlayback = true
     this.#onPlaying = options.onPlaying
     this.#onFatalError = options.onFatalError
-    this.#mediaSource = new MediaSource()
-    this.#objectUrl = URL.createObjectURL(this.#mediaSource)
+    this.#mediaSource = new MediaSourceConstructor()
+    this.#objectUrl = URL.createObjectURL(this.#mediaSource as unknown as MediaSource)
     this.#video.src = this.#objectUrl
     this.#video.muted = true
     this.#video.playsInline = true

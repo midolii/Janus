@@ -47,4 +47,25 @@ describe("LivePreviewWindow", () => {
     expect(markup).toContain("实时截图 · alas")
     expect(markup).toContain("alas 实时截图")
   })
+
+  it("keeps media mounted but visually collapses it while minimized", () => {
+    const markup = renderToStaticMarkup(
+      <LivePreviewWindow
+        {...handlers}
+        open
+        minimized
+        maximized={false}
+        title="实时截图 · alas"
+        statusLabel="auto · 30 FPS"
+      >
+        <div role="img" aria-label="alas 实时截图" />
+      </LivePreviewWindow>,
+    )
+
+    // The mounted child owns the WebSocket session, so minimizing must only hide it.
+    expect(markup).toContain("alas 实时截图")
+    expect(markup).toContain('aria-hidden="true"')
+    expect(markup).toContain("h-12")
+    expect(markup).not.toContain("sm:min-h-60")
+  })
 })

@@ -82,8 +82,9 @@ export function LivePreviewWindow({
               "pointer-events-auto absolute flex min-h-12 flex-col overflow-hidden border border-white/16 bg-slate-950 text-white shadow-[0_30px_90px_-30px_rgba(15,23,42,0.9)] ring-1 ring-black/15 backdrop-blur-3xl",
               maximized
                 ? "inset-3 rounded-[1.6rem] sm:inset-6"
-                : "right-4 bottom-4 h-82 max-h-[calc(100dvh-2rem)] w-[min(31rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] resize rounded-[1.45rem] sm:right-7 sm:bottom-7 sm:min-h-60 sm:min-w-80",
-              minimized && !maximized && "h-auto resize-none",
+                : minimized
+                  ? "right-4 bottom-4 h-12 w-[min(31rem,calc(100vw-2rem))] resize-none rounded-[1.45rem] sm:right-7 sm:bottom-7"
+                  : "right-4 bottom-4 h-82 max-h-[calc(100dvh-2rem)] w-[min(31rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] resize rounded-[1.45rem] sm:right-7 sm:bottom-7 sm:min-h-60 sm:min-w-80",
             )}
             role="region"
             aria-label={title}
@@ -139,28 +140,32 @@ export function LivePreviewWindow({
               </div>
             </header>
 
-            {!minimized || maximized ? (
-              <div className="relative min-h-0 flex-1 overflow-hidden bg-black">
-                {children}
-                <div
-                  className="pointer-events-none absolute right-3 bottom-3 left-3 z-10 flex min-w-0 items-center gap-2 rounded-full border border-white/10 bg-black/58 px-3 py-1.5 text-[0.68rem] text-white/72 shadow-lg backdrop-blur-xl"
-                  title={statusLabel}
-                  aria-live="polite"
-                >
-                  <span
-                    className={cn(
-                      "size-2 shrink-0 rounded-full",
-                      statusTone === "success" && "bg-emerald-400",
-                      statusTone === "warning" && "bg-amber-400",
-                      statusTone === "danger" && "bg-red-400",
-                      statusTone === "neutral" && "bg-slate-400",
-                    )}
-                    aria-hidden="true"
-                  />
-                  <span className="min-w-0 truncate whitespace-nowrap">{statusLabel}</span>
-                </div>
+            <div
+              className={cn(
+                "relative min-h-0 flex-1 overflow-hidden bg-black",
+                minimized && !maximized && "pointer-events-none h-0 flex-none opacity-0",
+              )}
+              aria-hidden={minimized && !maximized}
+            >
+              {children}
+              <div
+                className="pointer-events-none absolute right-3 bottom-3 left-3 z-10 flex min-w-0 items-center gap-2 rounded-full border border-white/10 bg-black/58 px-3 py-1.5 text-[0.68rem] text-white/72 shadow-lg backdrop-blur-xl"
+                title={statusLabel}
+                aria-live="polite"
+              >
+                <span
+                  className={cn(
+                    "size-2 shrink-0 rounded-full",
+                    statusTone === "success" && "bg-emerald-400",
+                    statusTone === "warning" && "bg-amber-400",
+                    statusTone === "danger" && "bg-red-400",
+                    statusTone === "neutral" && "bg-slate-400",
+                  )}
+                  aria-hidden="true"
+                />
+                <span className="min-w-0 truncate whitespace-nowrap">{statusLabel}</span>
               </div>
-            ) : null}
+            </div>
           </motion.section>
         </motion.div>
       )}

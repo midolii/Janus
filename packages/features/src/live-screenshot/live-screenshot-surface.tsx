@@ -40,7 +40,7 @@ export function LiveScreenshotSurface({
       {/* 实时截图流始终静音且不包含音轨，因此无需字幕轨。 */}
       <video
         ref={videoRef}
-        className="size-full object-contain"
+        className="absolute inset-0 size-full object-contain"
         aria-label={`${instance} 实时截图`}
         autoPlay
         muted
@@ -48,7 +48,7 @@ export function LiveScreenshotSurface({
       />
       <canvas
         ref={canvasRef}
-        className="size-full object-contain"
+        className="absolute inset-0 size-full object-contain"
         aria-label={`${instance} 实时截图画布`}
         hidden
       />

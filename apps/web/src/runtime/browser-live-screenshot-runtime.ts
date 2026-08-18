@@ -72,6 +72,7 @@ export class BrowserLiveScreenshotRuntime implements LiveScreenshotRuntime {
         clearTimeout(reconnectTimer)
         reconnectTimer = null
       }
+      preserveLastVideoFrame(surface)
       player?.close()
       player = null
       if (socket) {
@@ -149,13 +150,17 @@ export class BrowserLiveScreenshotRuntime implements LiveScreenshotRuntime {
         return
       }
 
-      surface.canvas.hidden = true
+      // Keep the previous decoded frame visible until the replacement MSE stream can play.
       surface.video.hidden = false
       try {
         player = new MseH264Player({
           video: surface.video,
           mime: message.mime ?? 'video/mp4; codecs="avc1.42E01E"',
-          onPlaying: markPlaying,
+          onPlaying: () => {
+            surface.canvas.hidden = true
+            surface.video.hidden = false
+            markPlaying()
+          },
           onFatalError: failPlayer,
         })
       } catch (error) {
@@ -243,6 +248,32 @@ export class BrowserLiveScreenshotRuntime implements LiveScreenshotRuntime {
         surface.canvas.hidden = true
       },
     }
+  }
+}
+
+/** Preserve the last decoded MSE frame while a failed stream reconnects instead of flashing black. */
+function preserveLastVideoFrame(surface: LiveScreenshotSurface) {
+  const { video, canvas } = surface
+  if (video.hidden || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+    return
+  }
+  const width = video.videoWidth
+  const height = video.videoHeight
+  if (width < 1 || height < 1) {
+    return
+  }
+  const context = canvas.getContext("2d")
+  if (!context) {
+    return
+  }
+  try {
+    canvas.width = width
+    canvas.height = height
+    context.drawImage(video, 0, 0, width, height)
+    canvas.hidden = false
+    video.hidden = true
+  } catch {
+    // Safari may reject frame capture while the media pipeline is already being torn down.
   }
 }
 
