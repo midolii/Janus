@@ -3,6 +3,7 @@ import {
   findLogMatches,
   formatConfigValue,
   getConfigValue,
+  mergeLogTail,
   parseLogBlocks,
 } from "./instance-detail-utils"
 
@@ -65,5 +66,23 @@ describe("instance detail utilities", () => {
       blocks[0]?.lines[2]?.id,
     ])
     expect(findLogMatches(blocks, "  ")).toEqual([])
+  })
+
+  it("keeps session history while merging a sliding backend log tail", () => {
+    const history = ["line-1", "line-2", "line-3"]
+
+    expect(mergeLogTail(history, ["line-2", "line-3", "line-4"])).toEqual([
+      "line-1",
+      "line-2",
+      "line-3",
+      "line-4",
+    ])
+    expect(mergeLogTail(history, ["line-3"])).toBe(history)
+    expect(mergeLogTail(history, ["service restarted"])).toEqual([
+      "line-1",
+      "line-2",
+      "line-3",
+      "service restarted",
+    ])
   })
 })

@@ -117,6 +117,40 @@ export function normalizeLogSearch(value: string): string {
   return value.trim().toLocaleLowerCase("zh-CN")
 }
 
+/**
+ * Extends the in-page log history from a sliding backend tail without duplicating its overlap.
+ * The backend currently returns at most 200 lines, so overlap detection is bounded by that small
+ * window even when the browser session has accumulated many more lines.
+ */
+export function mergeLogTail(history: string[], incomingTail: string[]): string[] {
+  if (incomingTail.length === 0) {
+    return history
+  }
+  if (history.length === 0) {
+    return incomingTail.slice()
+  }
+
+  const maximumOverlap = Math.min(history.length, incomingTail.length)
+  for (let overlap = maximumOverlap; overlap > 0; overlap -= 1) {
+    const historyStart = history.length - overlap
+    let matches = true
+    for (let index = 0; index < overlap; index += 1) {
+      if (history[historyStart + index] !== incomingTail[index]) {
+        matches = false
+        break
+      }
+    }
+
+    if (matches) {
+      return overlap === incomingTail.length ? history : history.concat(incomingTail.slice(overlap))
+    }
+  }
+
+  // A service restart or a polling gap longer than the tail window can remove all overlap. Keep
+  // both sequences so the current browser session never discards information it already showed.
+  return history.concat(incomingTail)
+}
+
 function resolveLogTimestamps(lines: string[], referenceDate: Date): LogLineWithParts[] {
   const occurrences = new Map<string, number>()
   const parsed = lines.map<LogLineWithParts>((raw) => {

@@ -1,6 +1,5 @@
 import type { JanusApiClient } from "@janus/api-client/client"
 import type {
-  ConfigFieldResponse,
   ConfigResponse,
   ConfigSchemaResponse,
   TaskListResponse,
@@ -11,14 +10,12 @@ import { cn } from "@janus/ui/lib/utils"
 import { useQuery } from "@tanstack/react-query"
 import {
   Activity,
-  Check,
   CheckCircle2,
   ChevronRight,
   CircleAlert,
   CircleDashed,
   Clock3,
   FileCog,
-  LockKeyhole,
   Pause,
   Play,
   RefreshCw,
@@ -29,12 +26,12 @@ import {
 } from "lucide-react"
 import { AnimatePresence, animate, motion, useReducedMotion } from "motion/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { ConfigGroupRenderer } from "./config-group-renderer"
 import type { InstanceDetailTab } from "./instance-detail-tabs"
 import {
   findLogMatches,
-  formatConfigValue,
-  getConfigValue,
   type LogBlock,
+  mergeLogTail,
   normalizeLogSearch,
   type ParsedLogLine,
   parseLogBlocks,
@@ -96,7 +93,7 @@ export function InstanceDetail({ api, instance, activeTab }: InstanceDetailProps
             error={config.error ?? configSchema.error}
           />
         ) : null}
-        {currentTab === "logs" ? <LogsPanel api={api} instance={instance} /> : null}
+        {currentTab === "logs" ? <LogsPanel key={instance} api={api} instance={instance} /> : null}
       </div>
     </main>
   )
@@ -120,7 +117,10 @@ function OverviewPanel({
             {instanceData?.running ? <Wifi className="size-4" /> : <WifiOff className="size-4" />}
             <span>{instanceData?.running ? "实例正在运行" : "实例当前未运行"}</span>
           </div>
-          <h2 className="mt-5 font-semibold text-3xl tracking-[-0.04em]">
+          <h2
+            className="mt-5 truncate font-semibold text-3xl tracking-[-0.04em]"
+            title={instanceData?.name ?? "读取中"}
+          >
             {instanceData?.name ?? "读取中"}
           </h2>
           <dl className="mt-7 grid gap-px overflow-hidden rounded-[1.1rem] bg-white/15 sm:grid-cols-3">
@@ -245,6 +245,10 @@ function ConfigPanel({
 }) {
   const [selectedMenuName, setSelectedMenuName] = useState<string | null>(null)
   const [selectedTaskName, setSelectedTaskName] = useState<string | null>(null)
+  const [expandedMenuName, setExpandedMenuName] = useState<false | string | null>(null)
+  const [activeGroupName, setActiveGroupName] = useState<string | null>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const reduceMotion = useReducedMotion()
 
   // A selection from another instance may no longer exist. Falling back during render avoids
   // synchronization effects and keeps instance switches deterministic.
@@ -265,6 +269,28 @@ function ConfigPanel({
     return <EmptyPanel title="没有可显示的配置" detail="此实例没有返回配置 Schema。" />
   }
 
+  const selectedGroups = selectedTask.groups
+  const openMenuName = expandedMenuName === null ? selectedMenu.name : expandedMenuName || null
+  const currentGroup =
+    selectedGroups.find((group) => group.name === activeGroupName) ?? selectedGroups[0]
+  const currentGroupName = currentGroup?.name ?? null
+
+  function selectTask(menuName: string, taskName: string, firstGroupName: string | null) {
+    setSelectedMenuName(menuName)
+    setSelectedTaskName(taskName)
+    setActiveGroupName(firstGroupName)
+    if (contentRef.current) {
+      contentRef.current.scrollTop = 0
+    }
+  }
+
+  function selectGroup(groupName: string) {
+    setActiveGroupName(groupName)
+    if (contentRef.current) {
+      contentRef.current.scrollTop = 0
+    }
+  }
+
   return (
     <div className="mx-auto flex h-full min-h-0 max-w-6xl flex-col">
       <PageHeading title="配置浏览" detail="当前为只读模式；写入接口开放后将在此启用编辑。" />
@@ -272,117 +298,160 @@ function ConfigPanel({
         <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[1.5rem] bg-white/62 p-3 shadow-[0_20px_50px_-38px_rgba(15,23,42,0.55)] backdrop-blur-2xl">
           <p className="px-3 py-2 font-medium text-slate-400 text-xs">配置分区</p>
           <div className="flex min-h-0 gap-1 overflow-x-auto overscroll-contain xl:block xl:flex-1 xl:space-y-1 xl:overflow-y-auto">
-            {schema.menus.map((menu) => (
-              <button
-                key={menu.name}
-                className={cn(
-                  "flex min-h-11 shrink-0 items-center gap-2 rounded-[0.85rem] px-3 text-left font-medium text-sm transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2 xl:w-full",
-                  menu.name === selectedMenu.name
-                    ? "bg-slate-950 text-white"
-                    : "text-slate-600 hover:bg-white/70 hover:text-slate-950",
-                )}
-                type="button"
-                onClick={() => {
-                  setSelectedMenuName(menu.name)
-                  setSelectedTaskName(null)
-                }}
-              >
-                <FileCog className="size-4" aria-hidden="true" />
-                <span className="truncate">{menu.displayName || menu.name}</span>
-              </button>
-            ))}
+            {schema.menus.map((menu, menuIndex) => {
+              const selected = menu.name === selectedMenu.name
+              const expanded = menu.name === openMenuName
+              const submenuId = `config-menu-${menuIndex}`
+              const menuLabel = menu.displayName || menu.name
+              return (
+                <div key={menu.name} className="min-w-0 shrink-0 xl:w-full">
+                  <button
+                    className={cn(
+                      "flex min-h-11 min-w-0 items-center gap-2 rounded-[0.85rem] px-3 text-left font-medium text-sm transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2 xl:w-full",
+                      selected
+                        ? "bg-slate-950 text-white"
+                        : "text-slate-600 hover:bg-white/70 hover:text-slate-950",
+                    )}
+                    type="button"
+                    aria-expanded={expanded}
+                    aria-controls={submenuId}
+                    title={menuLabel}
+                    onClick={() => {
+                      if (expanded) {
+                        setExpandedMenuName(false)
+                        return
+                      }
+                      setExpandedMenuName(menu.name)
+                      setSelectedMenuName(menu.name)
+                      setSelectedTaskName(null)
+                      setActiveGroupName(menu.tasks[0]?.groups[0]?.name ?? null)
+                      if (contentRef.current) {
+                        contentRef.current.scrollTop = 0
+                      }
+                    }}
+                  >
+                    <FileCog className="size-4 shrink-0" aria-hidden="true" />
+                    <span className="min-w-0 flex-1 truncate">{menuLabel}</span>
+                    <ChevronRight
+                      className={cn(
+                        "size-3.5 shrink-0 text-current/55 transition-transform",
+                        expanded && "rotate-90",
+                      )}
+                      aria-hidden="true"
+                    />
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {expanded ? (
+                      <motion.div
+                        id={submenuId}
+                        key="submenu"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{
+                          duration: reduceMotion ? 0 : 0.18,
+                          ease: [0.22, 1, 0.36, 1],
+                        }}
+                        className="overflow-hidden"
+                      >
+                        <div className="mt-1 ml-4 space-y-0.5 border-slate-900/8 border-l pl-2">
+                          {menu.tasks.map((task) => {
+                            const taskLabel = task.displayName || task.name
+                            const active = selected && task.name === selectedTask.name
+                            return (
+                              <button
+                                key={task.name}
+                                className={cn(
+                                  "flex min-h-9 w-full min-w-0 items-center rounded-[0.72rem] px-3 text-left font-medium text-xs transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
+                                  active
+                                    ? "bg-slate-900/[0.07] text-slate-950"
+                                    : "text-slate-500 hover:bg-white/65 hover:text-slate-950",
+                                )}
+                                type="button"
+                                aria-current={active ? "page" : undefined}
+                                title={taskLabel}
+                                onClick={() =>
+                                  selectTask(menu.name, task.name, task.groups[0]?.name ?? null)
+                                }
+                              >
+                                <span className="min-w-0 flex-1 truncate">{taskLabel}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
+                </div>
+              )
+            })}
           </div>
         </aside>
 
         <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[1.5rem] bg-white/62 shadow-[0_20px_50px_-38px_rgba(15,23,42,0.55)] backdrop-blur-2xl">
           <div className="shrink-0 border-slate-900/6 border-b px-5 py-5 sm:px-6">
-            <h2 className="font-semibold text-lg tracking-[-0.025em]">
+            <p
+              className="truncate text-slate-500 text-xs"
+              title={selectedMenu.displayName || selectedMenu.name}
+            >
               {selectedMenu.displayName || selectedMenu.name}
+            </p>
+            <h2
+              className="mt-1 truncate font-semibold text-lg tracking-[-0.025em]"
+              title={selectedTask.displayName || selectedTask.name}
+            >
+              {selectedTask.displayName || selectedTask.name}
             </h2>
-            {selectedMenu.tasks.length > 1 ? (
-              <div className="mt-4 flex gap-1 overflow-x-auto rounded-[0.95rem] bg-slate-900/[0.035] p-1">
-                {selectedMenu.tasks.map((task) => (
-                  <button
-                    key={task.name}
-                    className={cn(
-                      "min-h-11 shrink-0 rounded-[0.72rem] px-3 font-medium text-xs transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
-                      task.name === selectedTask.name
-                        ? "bg-white text-slate-950 shadow-[0_5px_14px_-10px_rgba(15,23,42,0.7)]"
-                        : "text-slate-500 hover:text-slate-950",
-                    )}
-                    type="button"
-                    onClick={() => setSelectedTaskName(task.name)}
-                  >
-                    {task.displayName || task.name}
-                  </button>
-                ))}
+            {selectedTask.help ? (
+              <p className="mt-2 whitespace-pre-wrap break-words text-slate-500 text-xs leading-5">
+                {selectedTask.help}
+              </p>
+            ) : null}
+            {selectedGroups.length > 0 ? (
+              <div
+                className="mt-4 flex gap-1 overflow-x-auto overscroll-contain rounded-[0.95rem] bg-slate-900/[0.035] p-1"
+                aria-label="配置块"
+                role="tablist"
+              >
+                {selectedGroups.map((group) => {
+                  const groupLabel = group.displayName || group.name
+                  return (
+                    <button
+                      key={group.name}
+                      className={cn(
+                        "min-h-10 max-w-44 shrink-0 truncate rounded-[0.72rem] px-3 font-medium text-xs transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
+                        group.name === currentGroupName
+                          ? "bg-white text-slate-950 shadow-[0_5px_14px_-10px_rgba(15,23,42,0.7)]"
+                          : "text-slate-500 hover:text-slate-950",
+                      )}
+                      type="button"
+                      role="tab"
+                      aria-selected={group.name === currentGroupName}
+                      title={groupLabel}
+                      onClick={() => selectGroup(group.name)}
+                    >
+                      {groupLabel}
+                    </button>
+                  )
+                })}
               </div>
             ) : null}
           </div>
 
-          <div className="min-h-0 flex-1 divide-y divide-slate-900/6 overflow-y-auto overscroll-contain">
-            {selectedTask.groups.map((group) => (
-              <section key={group.name} className="px-5 py-5 sm:px-6">
-                <h3 className="font-medium text-sm">{group.displayName || group.name}</h3>
-                {group.help ? (
-                  <p className="mt-1 text-slate-500 text-xs leading-5">{group.help}</p>
-                ) : null}
-                <dl className="mt-4 grid gap-2 lg:grid-cols-2">
-                  {group.fields.map((field) => (
-                    <ConfigField
-                      key={field.key}
-                      field={field}
-                      value={getConfigValue(config.values, field.key)}
-                      redacted={config.redactedPaths.includes(field.key)}
-                    />
-                  ))}
-                </dl>
-              </section>
-            ))}
+          <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            {currentGroup ? (
+              <ConfigGroupRenderer
+                key={currentGroup.name}
+                moduleName={schema.module}
+                menu={selectedMenu}
+                task={selectedTask}
+                group={currentGroup}
+                config={config}
+              />
+            ) : null}
           </div>
         </section>
       </div>
-    </div>
-  )
-}
-
-function ConfigField({
-  field,
-  value,
-  redacted,
-}: {
-  field: ConfigFieldResponse
-  value: unknown
-  redacted: boolean
-}) {
-  const option = field.options.find((item) => Object.is(item.value, value))
-  const displayValue =
-    redacted || field.sensitive ? "••••••" : (option?.label ?? formatConfigValue(value))
-  const booleanValue = typeof value === "boolean" ? value : undefined
-
-  return (
-    <div className="rounded-[1rem] bg-slate-900/[0.035] px-4 py-3.5">
-      <dt className="flex items-start justify-between gap-3">
-        <span className="font-medium text-sm">{field.displayName || field.name}</span>
-        {field.readOnly || field.display === "disabled" ? (
-          <LockKeyhole className="mt-0.5 size-3.5 shrink-0 text-slate-400" aria-label="只读" />
-        ) : null}
-      </dt>
-      <dd className="mt-2 flex min-h-6 items-center gap-2 text-slate-600 text-sm">
-        {booleanValue !== undefined && !redacted && !field.sensitive ? (
-          <span
-            className={cn(
-              "flex size-5 shrink-0 items-center justify-center rounded-md",
-              booleanValue ? "bg-blue-600 text-white" : "bg-slate-200 text-transparent",
-            )}
-            aria-hidden="true"
-          >
-            <Check className="size-3.5" />
-          </span>
-        ) : null}
-        <span className="min-w-0 break-words">{displayValue}</span>
-      </dd>
-      {field.help ? <p className="mt-2 text-slate-500 text-xs leading-5">{field.help}</p> : null}
     </div>
   )
 }
@@ -393,9 +462,12 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
   const [search, setSearch] = useState("")
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0)
   const [expandedById, setExpandedById] = useState<Record<string, boolean>>({})
+  const [sessionLines, setSessionLines] = useState<string[]>([])
   const viewportRef = useRef<HTMLDivElement>(null)
   const scrollAnimationRef = useRef<{ stop: () => void } | null>(null)
   const programmaticScrollRef = useRef(false)
+  const userScrollIntentRef = useRef(false)
+  const userScrollIntentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const followSuppressionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const suppressFollowFromLayoutRef = useRef(false)
   const hasInitialScrollRef = useRef(false)
@@ -404,7 +476,8 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
     ...logsQueryOptions(api, instance, 200),
     refetchInterval: paused ? false : 2_000,
   })
-  const rawLines = logs.data?.lines ?? []
+  const latestTail = logs.data?.lines
+  const rawLines = sessionLines
   const blocks = useMemo(() => parseLogBlocks(rawLines), [rawLines])
   const matches = useMemo(() => findLogMatches(blocks, search), [blocks, search])
   const searchActive = normalizeLogSearch(search).length > 0
@@ -414,11 +487,30 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
   const currentLineId = currentMatch?.lineId ?? null
   const lastRawLine = rawLines.at(-1)
 
+  useEffect(() => {
+    if (!latestTail) {
+      return
+    }
+    setSessionLines((history) => mergeLogTail(history, latestTail))
+  }, [latestTail])
+
   const stopScrollAnimation = useCallback(() => {
     scrollAnimationRef.current?.stop()
     scrollAnimationRef.current = null
     programmaticScrollRef.current = false
   }, [])
+
+  const markUserScrollIntent = useCallback(() => {
+    stopScrollAnimation()
+    userScrollIntentRef.current = true
+    if (userScrollIntentTimerRef.current) {
+      clearTimeout(userScrollIntentTimerRef.current)
+    }
+    userScrollIntentTimerRef.current = setTimeout(() => {
+      userScrollIntentRef.current = false
+      userScrollIntentTimerRef.current = null
+    }, 240)
+  }, [stopScrollAnimation])
 
   const scrollViewportTo = useCallback(
     (targetTop: number, animated: boolean) => {
@@ -519,6 +611,9 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
       if (followSuppressionTimerRef.current) {
         clearTimeout(followSuppressionTimerRef.current)
       }
+      if (userScrollIntentTimerRef.current) {
+        clearTimeout(userScrollIntentTimerRef.current)
+      }
     },
     [stopScrollAnimation],
   )
@@ -532,6 +627,11 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
 
   function toggleBlock(block: LogBlock, expanded: boolean) {
     stopScrollAnimation()
+    userScrollIntentRef.current = false
+    if (userScrollIntentTimerRef.current) {
+      clearTimeout(userScrollIntentTimerRef.current)
+      userScrollIntentTimerRef.current = null
+    }
     setFollowing(false)
     suppressFollowFromLayoutRef.current = true
     if (followSuppressionTimerRef.current) {
@@ -620,7 +720,7 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
 
         {logs.isError ? (
           <div className="px-5 py-4 text-red-300 text-sm" role="alert">
-            日志读取失败：{logs.error.message}
+            <span className="break-words">日志读取失败：{logs.error.message}</span>
           </div>
         ) : null}
         <div
@@ -631,16 +731,34 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
           tabIndex={0}
           aria-label={`${instance} 实时日志`}
           aria-live={paused ? "off" : "polite"}
-          onPointerDown={stopScrollAnimation}
-          onTouchStart={stopScrollAnimation}
-          onWheel={stopScrollAnimation}
+          onPointerDown={markUserScrollIntent}
+          onTouchStart={markUserScrollIntent}
+          onWheel={markUserScrollIntent}
+          onKeyDown={(event) => {
+            if (
+              ["ArrowDown", "ArrowUp", "End", "Home", "PageDown", "PageUp", " "].includes(event.key)
+            ) {
+              markUserScrollIntent()
+            }
+          }}
           onScroll={(event) => {
-            if (programmaticScrollRef.current || suppressFollowFromLayoutRef.current) {
+            if (
+              programmaticScrollRef.current ||
+              suppressFollowFromLayoutRef.current ||
+              !userScrollIntentRef.current
+            ) {
               return
             }
             const target = event.currentTarget
             const nearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 36
             setFollowing((current) => (current === nearBottom ? current : nearBottom))
+            if (userScrollIntentTimerRef.current) {
+              clearTimeout(userScrollIntentTimerRef.current)
+            }
+            userScrollIntentTimerRef.current = setTimeout(() => {
+              userScrollIntentRef.current = false
+              userScrollIntentTimerRef.current = null
+            }, 240)
           }}
         >
           {blocks.length > 0 ? (
@@ -671,7 +789,9 @@ function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string })
           <span>
             {paused ? "已暂停轮询" : "每 2 秒刷新"} · {following ? "自动跟随" : "已离开末尾"}
           </span>
-          <span>{rawLines.length} 行</span>
+          <span>
+            会话缓存 {rawLines.length} 行 · 后端窗口 {latestTail?.length ?? 0}
+          </span>
         </footer>
       </section>
     </div>
@@ -716,7 +836,10 @@ function LogBlockItem({
           value={block.timestamp}
           options={{ day: "2-digit", hour: "2-digit", minute: "2-digit", month: "2-digit" }}
         />
-        <span className="min-w-0 flex-1 truncate font-medium text-slate-200 text-xs">
+        <span
+          className="min-w-0 flex-1 truncate font-medium text-slate-200 text-xs"
+          title={block.title}
+        >
           {block.title}
         </span>
         <span className="shrink-0 text-[0.65rem] text-slate-600 tabular-nums">
@@ -799,9 +922,14 @@ function HighlightedLogText({ text, search }: { text: string; search: string }) 
 
 function PageHeading({ title, detail }: { title: string; detail: string }) {
   return (
-    <div className="shrink-0">
-      <h2 className="font-semibold text-2xl tracking-[-0.035em] sm:text-[1.75rem]">{title}</h2>
-      <p className="mt-1 text-slate-500 text-sm">{detail}</p>
+    <div className="min-w-0 shrink-0">
+      <h2
+        className="truncate font-semibold text-2xl tracking-[-0.035em] sm:text-[1.75rem]"
+        title={title}
+      >
+        {title}
+      </h2>
+      <p className="mt-1 break-words text-slate-500 text-sm">{detail}</p>
     </div>
   )
 }
@@ -824,8 +952,10 @@ function EmptyPanel({ title, detail }: { title: string; detail: string }) {
   return (
     <div className="flex min-h-72 flex-col items-center justify-center px-6 text-center">
       <CheckCircle2 className="size-6 text-slate-300" aria-hidden="true" />
-      <h2 className="mt-4 font-medium text-sm">{title}</h2>
-      <p className="mt-1.5 max-w-sm text-slate-500 text-xs leading-5">{detail}</p>
+      <h2 className="mt-4 max-w-full truncate font-medium text-sm" title={title}>
+        {title}
+      </h2>
+      <p className="mt-1.5 max-w-sm break-words text-slate-500 text-xs leading-5">{detail}</p>
     </div>
   )
 }
@@ -848,9 +978,11 @@ function ErrorPanel({
       role="alert"
     >
       <CircleAlert className="mt-0.5 size-4.5 shrink-0" aria-hidden="true" />
-      <div>
-        <p className="font-medium text-sm">{title}</p>
-        <p className="mt-0.5 text-red-800/75 text-xs leading-5">{detail}</p>
+      <div className="min-w-0">
+        <p className="truncate font-medium text-sm" title={title}>
+          {title}
+        </p>
+        <p className="mt-0.5 break-words text-red-800/75 text-xs leading-5">{detail}</p>
       </div>
     </div>
   )

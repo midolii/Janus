@@ -302,7 +302,7 @@ export function Dashboard({ api, platform }: DashboardProps) {
                         ? "正在读取实例"
                         : "等待实例接入"}
                   </h2>
-                  <p className="mt-3 max-w-lg text-blue-100/80 text-sm leading-6">
+                  <p className="mt-3 max-w-lg break-words text-blue-100/80 text-sm leading-6">
                     {activeInstance
                       ? `当前查看 ${activeInstance}，任务状态每 3 秒自动更新。`
                       : "API 已连接后，实例与任务会在这里自动出现。"}
@@ -324,9 +324,12 @@ export function Dashboard({ api, platform }: DashboardProps) {
                 id="instances"
               >
                 <div className="flex flex-col gap-4 px-5 pt-5 pb-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:pt-6">
-                  <div>
+                  <div className="min-w-0">
                     <h2 className="font-semibold text-[1.05rem] tracking-[-0.02em]">当前任务</h2>
-                    <p className="mt-1 text-slate-500 text-xs">
+                    <p
+                      className="mt-1 truncate text-slate-500 text-xs"
+                      title={activeInstance ? `${activeInstance} · 自动刷新` : undefined}
+                    >
                       {activeInstance ? `${activeInstance} · 自动刷新` : "选择一个实例查看任务"}
                     </p>
                   </div>
@@ -337,15 +340,16 @@ export function Dashboard({ api, platform }: DashboardProps) {
                           <button
                             key={instance.name}
                             className={cn(
-                              "min-h-11 shrink-0 rounded-[0.72rem] px-3 font-medium text-xs transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
+                              "flex min-h-11 max-w-44 shrink-0 items-center rounded-[0.72rem] px-3 font-medium text-xs transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
                               instance.name === activeInstance
                                 ? "bg-white text-slate-950 shadow-[0_5px_14px_-10px_rgba(15,23,42,0.7)]"
                                 : "text-slate-500 hover:text-slate-950",
                             )}
                             type="button"
+                            title={instance.name}
                             onClick={() => setSelectedInstance(instance.name)}
                           >
-                            {instance.name}
+                            <span className="min-w-0 truncate">{instance.name}</span>
                           </button>
                         ))}
                       </div>
@@ -454,7 +458,12 @@ function HeroFact({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-white/8 px-4 py-4 first:border-white/15 first:border-r sm:px-5">
       <dt className="text-blue-100/70 text-xs">{label}</dt>
-      <dd className="mt-1.5 font-semibold text-lg tabular-nums tracking-[-0.025em]">{value}</dd>
+      <dd
+        className="mt-1.5 truncate font-semibold text-lg tabular-nums tracking-[-0.025em]"
+        title={value}
+      >
+        {value}
+      </dd>
     </div>
   )
 }
@@ -569,8 +578,10 @@ function EmptyState({
   return (
     <div className="flex min-h-56 flex-col items-center justify-center px-6 py-10 text-center">
       <Icon className="size-6 text-slate-300" aria-hidden="true" />
-      <h3 className="mt-4 font-medium text-sm">{title}</h3>
-      <p className="mt-1.5 max-w-sm text-slate-500 text-xs leading-5">{detail}</p>
+      <h3 className="mt-4 max-w-full truncate font-medium text-sm" title={title}>
+        {title}
+      </h3>
+      <p className="mt-1.5 max-w-sm break-words text-slate-500 text-xs leading-5">{detail}</p>
     </div>
   )
 }
