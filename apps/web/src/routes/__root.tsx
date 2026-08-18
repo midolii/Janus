@@ -1,4 +1,4 @@
-import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router"
+import { createRootRouteWithContext, HeadContent, Scripts } from "@tanstack/react-router"
 import { DashboardPage } from "../components/dashboard-page"
 import { DevelopmentSupport } from "../components/development-support"
 import { NavigationStateProvider } from "../components/navigation-state"
@@ -35,12 +35,10 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 })
 
 function ApplicationShell() {
-  return (
-    <>
-      <DashboardPage />
-      <Outlet />
-    </>
-  )
+  // Leaf routes only validate and expose URL state. DashboardPage owns the persistent UI, so an
+  // empty Outlet would add a route Suspense boundary that differs between the SPA shell build and
+  // the browser's first matched route, causing hydration to discard the document.
+  return <DashboardPage />
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
