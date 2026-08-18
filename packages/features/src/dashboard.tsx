@@ -1,11 +1,11 @@
 import type { JanusApiClient } from "@janus/api-client/client"
 import type { TaskListResponse, TaskResponse } from "@janus/api-client/contracts"
 import { Button } from "@janus/ui/components/button"
+import { DateDisplay } from "@janus/ui/components/date-display"
 import { cn } from "@janus/ui/lib/utils"
 import { useQuery } from "@tanstack/react-query"
 import {
   Activity,
-  Blocks,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -16,15 +16,21 @@ import {
   CloudCog,
   Code2,
   Cpu,
+  Info,
   LayoutDashboard,
   ListTodo,
+  Logs,
   RefreshCw,
   Server,
+  Settings2,
   ShieldCheck,
   Wifi,
   WifiOff,
 } from "lucide-react"
+import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useState } from "react"
+import { InstanceDetail } from "./instance-detail"
+import type { InstanceDetailTab } from "./instance-detail-tabs"
 import {
   healthQueryOptions,
   instancesQueryOptions,
@@ -35,8 +41,18 @@ import {
 export interface DashboardProps {
   api: JanusApiClient
   platform: "web" | "electron"
-  onOpenInstance?: (instance: string) => void
 }
+
+type ActiveView =
+  | { kind: "dashboard" }
+  | { kind: "instance"; instance: string; tab: InstanceDetailTab }
+
+const instanceTabs = [
+  { key: "overview", label: "概览", icon: Info },
+  { key: "tasks", label: "任务", icon: ListTodo },
+  { key: "config", label: "配置", icon: Settings2 },
+  { key: "logs", label: "日志", icon: Logs },
+] as const
 
 const taskGroups = [
   { key: "running", label: "运行中", icon: Activity, tone: "text-emerald-700" },
@@ -44,8 +60,11 @@ const taskGroups = [
   { key: "waiting", label: "等待中", icon: CircleDashed, tone: "text-amber-700" },
 ] as const
 
-export function Dashboard({ api, platform, onOpenInstance }: DashboardProps) {
+export function Dashboard({ api, platform }: DashboardProps) {
   const [selectedInstance, setSelectedInstance] = useState<string | null>(null)
+  const [expandedInstance, setExpandedInstance] = useState<string | null>(null)
+  const [activeView, setActiveView] = useState<ActiveView>({ kind: "dashboard" })
+  const reduceMotion = useReducedMotion()
   const health = useQuery(healthQueryOptions(api))
   const system = useQuery(systemQueryOptions(api))
   const instances = useQuery(instancesQueryOptions(api))
@@ -73,7 +92,7 @@ export function Dashboard({ api, platform, onOpenInstance }: DashboardProps) {
   return (
     <div className="app-viewport overflow-hidden p-3 text-slate-950 sm:p-5 lg:p-6">
       <div className="mx-auto grid h-full max-w-[1540px] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[2rem] border border-white/70 bg-white/48 shadow-[0_28px_80px_-34px_rgba(30,64,83,0.45)] backdrop-blur-[34px] lg:grid-cols-[16.5rem_minmax(0,1fr)] lg:grid-rows-1 lg:rounded-[2.25rem]">
-        <aside className="flex min-h-0 flex-col overflow-y-auto overscroll-contain border-white/65 border-b bg-white/36 p-4 lg:border-r lg:border-b-0 lg:p-5">
+        <aside className="flex max-h-[45dvh] min-h-0 flex-col overflow-y-auto overscroll-contain border-white/65 border-b bg-white/36 p-4 lg:max-h-none lg:border-r lg:border-b-0 lg:p-5">
           <div className="flex items-center justify-between gap-4 lg:justify-start">
             <div className="flex size-11 items-center justify-center rounded-[0.9rem] bg-slate-950 text-white shadow-[0_10px_24px_-14px_rgba(15,23,42,0.75)]">
               <span className="font-semibold text-lg tracking-[-0.03em]">J</span>
@@ -86,51 +105,117 @@ export function Dashboard({ api, platform, onOpenInstance }: DashboardProps) {
           </div>
 
           <nav className="mt-5 flex gap-2 lg:mt-9 lg:block" aria-label="主导航">
-            <a
-              className="flex min-h-11 flex-1 items-center gap-3 rounded-[0.9rem] bg-slate-950 px-3.5 font-medium text-sm text-white shadow-[0_12px_26px_-18px_rgba(15,23,42,0.8)] lg:flex-none"
-              href="#overview"
-              aria-current="page"
+            <button
+              className={cn(
+                "flex min-h-11 flex-1 items-center gap-3 rounded-[0.9rem] px-3.5 font-medium text-sm transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2 lg:flex-none",
+                activeView.kind === "dashboard"
+                  ? "bg-slate-950 text-white shadow-[0_12px_26px_-18px_rgba(15,23,42,0.8)]"
+                  : "text-slate-600 hover:bg-white/55 hover:text-slate-950",
+              )}
+              type="button"
+              aria-current={activeView.kind === "dashboard" ? "page" : undefined}
+              onClick={() => setActiveView({ kind: "dashboard" })}
             >
               <LayoutDashboard className="size-[1.1rem]" aria-hidden="true" />
               仪表盘
-            </a>
-            <a
-              className="flex min-h-11 flex-1 items-center gap-3 rounded-[0.9rem] px-3.5 font-medium text-slate-600 text-sm transition-colors hover:bg-white/55 hover:text-slate-950 focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2 lg:mt-1.5 lg:flex-none"
-              href="#instances"
-            >
-              <Blocks className="size-[1.1rem]" aria-hidden="true" />
-              实例
-            </a>
+            </button>
           </nav>
 
-          <div className="mt-7 hidden lg:block">
+          <div className="mt-5 min-h-0 overflow-y-auto overscroll-contain lg:mt-7">
             <p className="px-3.5 font-medium text-slate-400 text-xs">实例</p>
             <div className="mt-2 space-y-1">
               {instances.isPending ? <InstanceNavigationSkeleton /> : null}
               {instanceItems.map((instance) => {
-                const selected = instance.name === activeInstance
+                const expanded = expandedInstance === instance.name
+                const selected =
+                  activeView.kind === "instance" && activeView.instance === instance.name
                 return (
-                  <button
-                    key={instance.name}
-                    className={cn(
-                      "flex min-h-11 w-full items-center gap-3 rounded-[0.9rem] px-3.5 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
-                      selected
-                        ? "bg-white/70 font-medium text-slate-950 shadow-[0_10px_28px_-24px_rgba(15,23,42,0.6)]"
-                        : "text-slate-600 hover:bg-white/45 hover:text-slate-950",
-                    )}
-                    type="button"
-                    onClick={() => setSelectedInstance(instance.name)}
-                  >
-                    <span
+                  <div key={instance.name}>
+                    <button
                       className={cn(
-                        "size-2 rounded-full",
-                        instance.running ? "bg-emerald-500" : "bg-slate-300",
+                        "flex min-h-11 w-full items-center gap-2.5 rounded-[0.9rem] px-3.5 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
+                        selected
+                          ? "bg-white/70 font-medium text-slate-950 shadow-[0_10px_28px_-24px_rgba(15,23,42,0.6)]"
+                          : "text-slate-600 hover:bg-white/45 hover:text-slate-950",
                       )}
-                      aria-hidden="true"
-                    />
-                    <span className="min-w-0 flex-1 truncate">{instance.name}</span>
-                    {selected ? <ChevronRight className="size-3.5 text-slate-400" /> : null}
-                  </button>
+                      type="button"
+                      aria-expanded={expanded}
+                      onClick={() => {
+                        setSelectedInstance(instance.name)
+                        setExpandedInstance(instance.name)
+                        setActiveView({
+                          kind: "instance",
+                          instance: instance.name,
+                          tab: "overview",
+                        })
+                      }}
+                    >
+                      <span
+                        className={cn(
+                          "size-2 shrink-0 rounded-full",
+                          instance.running ? "bg-emerald-500" : "bg-slate-300",
+                        )}
+                        aria-hidden="true"
+                      />
+                      <span className="min-w-0 flex-1 truncate">实例：{instance.name}</span>
+                      <ChevronRight
+                        className={cn(
+                          "size-3.5 shrink-0 text-slate-400 transition-transform",
+                          expanded && "rotate-90",
+                        )}
+                        aria-hidden="true"
+                      />
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {expanded ? (
+                        <motion.div
+                          key="subtabs"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{
+                            duration: reduceMotion ? 0 : 0.2,
+                            ease: [0.22, 1, 0.36, 1],
+                          }}
+                          className="overflow-hidden"
+                        >
+                          <div
+                            className="mt-1 ml-4 space-y-0.5 border-slate-900/8 border-l pl-2"
+                            role="tablist"
+                            aria-label={`实例：${instance.name}`}
+                          >
+                            {instanceTabs.map((tab) => {
+                              const active = selected && activeView.tab === tab.key
+                              return (
+                                <button
+                                  key={tab.key}
+                                  className={cn(
+                                    "flex min-h-10 w-full items-center gap-2.5 rounded-[0.75rem] px-3 text-left font-medium text-xs transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
+                                    active
+                                      ? "bg-slate-950 text-white"
+                                      : "text-slate-500 hover:bg-white/50 hover:text-slate-950",
+                                  )}
+                                  type="button"
+                                  role="tab"
+                                  aria-selected={active}
+                                  onClick={() =>
+                                    setActiveView({
+                                      kind: "instance",
+                                      instance: instance.name,
+                                      tab: tab.key,
+                                    })
+                                  }
+                                >
+                                  <tab.icon className="size-3.5" aria-hidden="true" />
+                                  {tab.label}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </motion.div>
+                      ) : null}
+                    </AnimatePresence>
+                  </div>
                 )
               })}
             </div>
@@ -150,187 +235,187 @@ export function Dashboard({ api, platform, onOpenInstance }: DashboardProps) {
           </div>
         </aside>
 
-        <main
-          className="min-h-0 min-w-0 overflow-y-auto overscroll-contain bg-[rgba(248,251,252,0.34)] p-4 sm:p-6 lg:p-8 xl:p-10"
-          id="overview"
-        >
-          <header className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="font-semibold text-[1.65rem] tracking-[-0.035em] sm:text-[2rem]">
-                运行概览
-              </h1>
-              <p className="mt-1 text-slate-500 text-sm">远程查看服务、实例与任务状态。</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <ConnectionBadge
-                className="hidden sm:flex"
-                online={online}
-                pending={health.isPending}
-              />
-              <Button
-                className="size-11 rounded-full border-white/80 bg-white/58 shadow-[0_8px_24px_-18px_rgba(15,23,42,0.7)] backdrop-blur-xl hover:bg-white/80"
-                type="button"
-                variant="outline"
-                size="icon-lg"
-                aria-label="刷新仪表盘"
-                disabled={fetching}
-                onClick={() => void refreshDashboard()}
-              >
-                <RefreshCw className={cn("size-4", fetching && "animate-spin")} />
-              </Button>
-            </div>
-          </header>
-
-          {health.isError ? (
-            <div
-              className="mt-6 flex items-start gap-3 rounded-[1.25rem] bg-red-50/80 px-4 py-3.5 text-red-900 shadow-[inset_0_0_0_1px_rgba(220,38,38,0.12)]"
-              role="alert"
-            >
-              <CircleAlert className="mt-0.5 size-4.5 shrink-0" aria-hidden="true" />
+        {activeView.kind === "dashboard" ? (
+          <main
+            className="min-h-0 min-w-0 overflow-y-auto overscroll-contain bg-[rgba(248,251,252,0.34)] p-4 sm:p-6 lg:p-8 xl:p-10"
+            id="overview"
+          >
+            <header className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-medium text-sm">无法连接 AzurPilot API</p>
-                <p className="mt-0.5 text-red-800/75 text-xs leading-5">
-                  {health.error instanceof Error ? health.error.message : "请检查代理或服务状态。"}
-                </p>
+                <h1 className="font-semibold text-[1.65rem] tracking-[-0.035em] sm:text-[2rem]">
+                  运行概览
+                </h1>
+                <p className="mt-1 text-slate-500 text-sm">远程查看服务、实例与任务状态。</p>
               </div>
-            </div>
-          ) : null}
-
-          <section className="relative mt-6 overflow-hidden rounded-[1.75rem] bg-[linear-gradient(130deg,rgba(22,99,140,0.98),rgba(18,61,88,0.96))] p-5 text-white shadow-[0_24px_54px_-32px_rgba(12,61,88,0.8)] sm:p-7 lg:p-8">
-            <div
-              className="pointer-events-none absolute -top-24 -right-20 size-64 rounded-full bg-cyan-300/20 blur-3xl"
-              aria-hidden="true"
-            />
-            <div className="relative grid gap-7 xl:grid-cols-[minmax(0,1.4fr)_minmax(17rem,0.6fr)] xl:items-end">
-              <div>
-                <div className="flex items-center gap-2 text-blue-100 text-sm">
-                  {online ? <Wifi className="size-4" /> : <WifiOff className="size-4" />}
-                  <span>{online ? "AzurPilot 服务在线" : "正在确认服务状态"}</span>
-                </div>
-                <h2 className="mt-5 max-w-xl text-balance font-semibold text-[1.75rem] leading-[1.15] tracking-[-0.035em] sm:text-[2.35rem]">
-                  {instanceItems.length > 0
-                    ? `${runningInstances} 个实例正在运行`
-                    : instances.isPending
-                      ? "正在读取实例"
-                      : "等待实例接入"}
-                </h2>
-                <p className="mt-3 max-w-lg text-blue-100/80 text-sm leading-6">
-                  {activeInstance
-                    ? `当前查看 ${activeInstance}，任务状态每 3 秒自动更新。`
-                    : "API 已连接后，实例与任务会在这里自动出现。"}
-                </p>
-              </div>
-              <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-[1.15rem] bg-white/15 backdrop-blur-xl">
-                <HeroFact label="API 版本" value={health.data?.apiVersion ?? "—"} />
-                <HeroFact
-                  label="实例总数"
-                  value={instances.isPending ? "—" : String(instanceItems.length)}
+              <div className="flex items-center gap-2">
+                <ConnectionBadge
+                  className="hidden sm:flex"
+                  online={online}
+                  pending={health.isPending}
                 />
-              </dl>
-            </div>
-          </section>
+                <Button
+                  className="size-11 rounded-full border-white/80 bg-white/58 shadow-[0_8px_24px_-18px_rgba(15,23,42,0.7)] backdrop-blur-xl hover:bg-white/80"
+                  type="button"
+                  variant="outline"
+                  size="icon-lg"
+                  aria-label="刷新仪表盘"
+                  disabled={fetching}
+                  onClick={() => void refreshDashboard()}
+                >
+                  <RefreshCw className={cn("size-4", fetching && "animate-spin")} />
+                </Button>
+              </div>
+            </header>
 
-          <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.75fr)]">
-            <section
-              className="overflow-hidden rounded-[1.75rem] bg-white/58 shadow-[0_20px_50px_-38px_rgba(15,23,42,0.55)] backdrop-blur-2xl"
-              id="instances"
-            >
-              <div className="flex flex-col gap-4 px-5 pt-5 pb-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:pt-6">
+            {health.isError ? (
+              <div
+                className="mt-6 flex items-start gap-3 rounded-[1.25rem] bg-red-50/80 px-4 py-3.5 text-red-900 shadow-[inset_0_0_0_1px_rgba(220,38,38,0.12)]"
+                role="alert"
+              >
+                <CircleAlert className="mt-0.5 size-4.5 shrink-0" aria-hidden="true" />
                 <div>
-                  <h2 className="font-semibold text-[1.05rem] tracking-[-0.02em]">当前任务</h2>
-                  <p className="mt-1 text-slate-500 text-xs">
-                    {activeInstance ? `${activeInstance} · 自动刷新` : "选择一个实例查看任务"}
+                  <p className="font-medium text-sm">无法连接 AzurPilot API</p>
+                  <p className="mt-0.5 text-red-800/75 text-xs leading-5">
+                    {health.error instanceof Error
+                      ? health.error.message
+                      : "请检查代理或服务状态。"}
                   </p>
                 </div>
-                <div className="flex max-w-full flex-wrap items-center gap-2 self-start sm:justify-end">
-                  {instanceItems.length > 0 ? (
-                    <div className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-[0.95rem] bg-slate-900/[0.045] p-1">
-                      {instanceItems.map((instance) => (
-                        <button
-                          key={instance.name}
-                          className={cn(
-                            "min-h-11 shrink-0 rounded-[0.72rem] px-3 font-medium text-xs transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
-                            instance.name === activeInstance
-                              ? "bg-white text-slate-950 shadow-[0_5px_14px_-10px_rgba(15,23,42,0.7)]"
-                              : "text-slate-500 hover:text-slate-950",
-                          )}
-                          type="button"
-                          onClick={() => setSelectedInstance(instance.name)}
-                        >
-                          {instance.name}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                  {activeInstance && onOpenInstance ? (
-                    <Button
-                      className="min-h-11 rounded-[0.85rem] border-white/80 bg-white/62 px-3.5 text-xs shadow-none hover:bg-white/85"
-                      type="button"
-                      variant="outline"
-                      onClick={() => onOpenInstance(activeInstance)}
-                    >
-                      查看实例
-                      <ChevronRight className="size-3.5" />
-                    </Button>
-                  ) : null}
-                </div>
               </div>
+            ) : null}
 
-              <div className="border-slate-900/6 border-t xl:max-h-[32rem] xl:overflow-y-auto xl:overscroll-contain">
-                {tasks.isPending && activeInstance ? <TaskListSkeleton /> : null}
-                {tasks.isError ? (
-                  <EmptyState
-                    icon={CircleAlert}
-                    title="任务读取失败"
-                    detail={tasks.error instanceof Error ? tasks.error.message : "稍后刷新重试。"}
-                  />
-                ) : null}
-                {!activeInstance && !instances.isPending ? (
-                  <EmptyState
-                    icon={Server}
-                    title="还没有可用实例"
-                    detail="请先在 AzurPilot 中创建并启动实例。"
-                  />
-                ) : null}
-                {tasks.data ? <TaskList tasks={tasks.data} /> : null}
-              </div>
-            </section>
-
-            <section className="rounded-[1.75rem] bg-white/58 p-5 shadow-[0_20px_50px_-38px_rgba(15,23,42,0.55)] backdrop-blur-2xl sm:p-6">
-              <div className="flex items-center justify-between gap-4">
+            <section className="relative mt-6 overflow-hidden rounded-[1.75rem] bg-[linear-gradient(130deg,rgba(22,99,140,0.98),rgba(18,61,88,0.96))] p-5 text-white shadow-[0_24px_54px_-32px_rgba(12,61,88,0.8)] sm:p-7 lg:p-8">
+              <div
+                className="pointer-events-none absolute -top-24 -right-20 size-64 rounded-full bg-cyan-300/20 blur-3xl"
+                aria-hidden="true"
+              />
+              <div className="relative grid gap-7 xl:grid-cols-[minmax(0,1.4fr)_minmax(17rem,0.6fr)] xl:items-end">
                 <div>
-                  <h2 className="font-semibold text-[1.05rem] tracking-[-0.02em]">运行环境</h2>
-                  <p className="mt-1 text-slate-500 text-xs">来自当前 AzurPilot 核心</p>
+                  <div className="flex items-center gap-2 text-blue-100 text-sm">
+                    {online ? <Wifi className="size-4" /> : <WifiOff className="size-4" />}
+                    <span>{online ? "AzurPilot 服务在线" : "正在确认服务状态"}</span>
+                  </div>
+                  <h2 className="mt-5 max-w-xl text-balance font-semibold text-[1.75rem] leading-[1.15] tracking-[-0.035em] sm:text-[2.35rem]">
+                    {instanceItems.length > 0
+                      ? `${runningInstances} 个实例正在运行`
+                      : instances.isPending
+                        ? "正在读取实例"
+                        : "等待实例接入"}
+                  </h2>
+                  <p className="mt-3 max-w-lg text-blue-100/80 text-sm leading-6">
+                    {activeInstance
+                      ? `当前查看 ${activeInstance}，任务状态每 3 秒自动更新。`
+                      : "API 已连接后，实例与任务会在这里自动出现。"}
+                  </p>
                 </div>
-                <CloudCog className="size-5 text-slate-400" aria-hidden="true" />
-              </div>
-
-              {system.isPending ? <SystemFactsSkeleton /> : null}
-              {system.isError ? (
-                <p className="mt-6 text-red-700 text-sm" role="alert">
-                  系统信息读取失败。
-                </p>
-              ) : null}
-              {system.data ? (
-                <dl className="mt-5 divide-y divide-slate-900/6">
-                  <SystemFact
-                    icon={Code2}
-                    label="核心提交"
-                    value={shortCommit(system.data.coreCommit)}
-                    mono
-                  />
-                  <SystemFact icon={Cpu} label="Python" value={system.data.pythonVersion} />
-                  <SystemFact icon={Server} label="平台" value={system.data.platform} />
-                  <SystemFact
-                    icon={ListTodo}
-                    label="API 能力"
-                    value={`${system.data.capabilities.length} 项`}
+                <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-[1.15rem] bg-white/15 backdrop-blur-xl">
+                  <HeroFact label="API 版本" value={health.data?.apiVersion ?? "—"} />
+                  <HeroFact
+                    label="实例总数"
+                    value={instances.isPending ? "—" : String(instanceItems.length)}
                   />
                 </dl>
-              ) : null}
+              </div>
             </section>
-          </div>
-        </main>
+
+            <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.75fr)]">
+              <section
+                className="overflow-hidden rounded-[1.75rem] bg-white/58 shadow-[0_20px_50px_-38px_rgba(15,23,42,0.55)] backdrop-blur-2xl"
+                id="instances"
+              >
+                <div className="flex flex-col gap-4 px-5 pt-5 pb-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:pt-6">
+                  <div>
+                    <h2 className="font-semibold text-[1.05rem] tracking-[-0.02em]">当前任务</h2>
+                    <p className="mt-1 text-slate-500 text-xs">
+                      {activeInstance ? `${activeInstance} · 自动刷新` : "选择一个实例查看任务"}
+                    </p>
+                  </div>
+                  <div className="flex max-w-full flex-wrap items-center gap-2 self-start sm:justify-end">
+                    {instanceItems.length > 0 ? (
+                      <div className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-[0.95rem] bg-slate-900/[0.045] p-1">
+                        {instanceItems.map((instance) => (
+                          <button
+                            key={instance.name}
+                            className={cn(
+                              "min-h-11 shrink-0 rounded-[0.72rem] px-3 font-medium text-xs transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
+                              instance.name === activeInstance
+                                ? "bg-white text-slate-950 shadow-[0_5px_14px_-10px_rgba(15,23,42,0.7)]"
+                                : "text-slate-500 hover:text-slate-950",
+                            )}
+                            type="button"
+                            onClick={() => setSelectedInstance(instance.name)}
+                          >
+                            {instance.name}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="border-slate-900/6 border-t xl:max-h-[32rem] xl:overflow-y-auto xl:overscroll-contain">
+                  {tasks.isPending && activeInstance ? <TaskListSkeleton /> : null}
+                  {tasks.isError ? (
+                    <EmptyState
+                      icon={CircleAlert}
+                      title="任务读取失败"
+                      detail={tasks.error instanceof Error ? tasks.error.message : "稍后刷新重试。"}
+                    />
+                  ) : null}
+                  {!activeInstance && !instances.isPending ? (
+                    <EmptyState
+                      icon={Server}
+                      title="还没有可用实例"
+                      detail="请先在 AzurPilot 中创建并启动实例。"
+                    />
+                  ) : null}
+                  {tasks.data ? <TaskList tasks={tasks.data} /> : null}
+                </div>
+              </section>
+
+              <section className="rounded-[1.75rem] bg-white/58 p-5 shadow-[0_20px_50px_-38px_rgba(15,23,42,0.55)] backdrop-blur-2xl sm:p-6">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h2 className="font-semibold text-[1.05rem] tracking-[-0.02em]">运行环境</h2>
+                    <p className="mt-1 text-slate-500 text-xs">来自当前 AzurPilot 核心</p>
+                  </div>
+                  <CloudCog className="size-5 text-slate-400" aria-hidden="true" />
+                </div>
+
+                {system.isPending ? <SystemFactsSkeleton /> : null}
+                {system.isError ? (
+                  <p className="mt-6 text-red-700 text-sm" role="alert">
+                    系统信息读取失败。
+                  </p>
+                ) : null}
+                {system.data ? (
+                  <dl className="mt-5 divide-y divide-slate-900/6">
+                    <SystemFact
+                      icon={Code2}
+                      label="核心提交"
+                      value={shortCommit(system.data.coreCommit)}
+                      mono
+                    />
+                    <SystemFact icon={Cpu} label="Python" value={system.data.pythonVersion} />
+                    <SystemFact icon={Server} label="平台" value={system.data.platform} />
+                    <SystemFact
+                      icon={ListTodo}
+                      label="API 能力"
+                      value={`${system.data.capabilities.length} 项`}
+                    />
+                  </dl>
+                ) : null}
+              </section>
+            </div>
+          </main>
+        ) : (
+          <InstanceDetail
+            key={activeView.instance}
+            api={api}
+            instance={activeView.instance}
+            activeTab={activeView.tab}
+          />
+        )}
       </div>
     </div>
   )
@@ -445,7 +530,7 @@ function TaskRow({ task }: { task: TaskResponse }) {
         <p className="truncate font-medium text-sm">{task.displayName || task.name}</p>
         <p className="mt-0.5 truncate text-slate-500 text-xs">{localizeTaskState(task.state)}</p>
       </div>
-      <p className="shrink-0 text-slate-500 text-xs tabular-nums">{formatNextRun(task.nextRun)}</p>
+      <DateDisplay className="shrink-0 text-slate-500 text-xs tabular-nums" value={task.nextRun} />
     </div>
   )
 }
@@ -549,22 +634,4 @@ function localizeTaskState(value: string) {
   }
 
   return labels[value.toLowerCase()] ?? value
-}
-
-function formatNextRun(value: string | null) {
-  if (!value) {
-    return "—"
-  }
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-
-  return new Intl.DateTimeFormat("zh-CN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "numeric",
-    day: "numeric",
-  }).format(date)
 }
