@@ -1,4 +1,5 @@
-import { createRootRouteWithContext, HeadContent, Scripts } from "@tanstack/react-router"
+import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router"
+import { DashboardPage } from "../components/dashboard-page"
 import { DevelopmentSupport } from "../components/development-support"
 import { NavigationStateProvider } from "../components/navigation-state"
 import type { RouterContext } from "../router"
@@ -29,8 +30,18 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       },
     ],
   }),
+  component: ApplicationShell,
   shellComponent: RootDocument,
 })
+
+function ApplicationShell() {
+  return (
+    <>
+      <DashboardPage />
+      <Outlet />
+    </>
+  )
+}
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (

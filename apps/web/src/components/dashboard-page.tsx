@@ -1,16 +1,28 @@
 import { Dashboard, type DashboardView } from "@janus/features/dashboard"
-import { useNavigate, useRouter } from "@tanstack/react-router"
+import { isInstanceDetailTab } from "@janus/features/instance-detail-tabs"
+import { useMatchRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { useNavigationState } from "./navigation-state"
 
-export interface DashboardPageProps {
-  view: DashboardView
-}
-
-export function DashboardPage({ view }: DashboardPageProps) {
+export function DashboardPage() {
+  const matchRoute = useMatchRoute()
   const navigate = useNavigate()
   const router = useRouter()
   const { api, platform } = router.options.context
   const { expandedInstance, setExpandedInstance } = useNavigationState()
+  // The dashboard shell stays mounted above leaf routes. Deriving the view from the committed
+  // match keeps the URL authoritative while disclosure state remains purely presentational.
+  const instanceRoute = matchRoute({
+    to: "/instances/$instance/$tab",
+    fuzzy: false,
+  })
+  const view: DashboardView =
+    instanceRoute && isInstanceDetailTab(instanceRoute.tab)
+      ? {
+          kind: "instance",
+          instance: instanceRoute.instance,
+          tab: instanceRoute.tab,
+        }
+      : { kind: "dashboard" }
 
   function navigateTo(nextView: DashboardView) {
     if (nextView.kind === "dashboard") {

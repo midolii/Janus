@@ -1,8 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { DashboardPage } from "../components/dashboard-page"
 
-export const Route = createFileRoute("/")({ component: Home })
+export const Route = createFileRoute("/")({ component: EmptyRoute })
 
-function Home() {
-  return <DashboardPage view={{ kind: "dashboard" }} />
+function EmptyRoute() {
+  return null
 }

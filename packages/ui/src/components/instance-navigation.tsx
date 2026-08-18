@@ -95,8 +95,13 @@ function MobileInstanceNavigation({
       {activeInstance ? (
         <Tabs
           className="mt-2 min-h-12 shrink-0 gap-0 sm:mt-0 sm:w-80"
-          value={activeTab}
-          onValueChange={(tab) => onSelectTab(activeInstance, String(tab))}
+          value={activeTab ?? null}
+          onValueChange={(tab, details) => {
+            // Ignore Base UI's automatic fallback when a route clears or replaces the value.
+            if (details.reason === "none") {
+              onSelectTab(activeInstance, String(tab))
+            }
+          }}
         >
           <TabsList
             className="grid min-h-12 w-full shrink-0 auto-cols-fr grid-flow-col gap-1 rounded-[0.9rem] bg-slate-900/4.5 p-1"
@@ -203,8 +208,12 @@ function DesktopInstanceNavigation({
                       <Tabs
                         className="mt-1 ml-4 gap-0 border-slate-900/8 border-l pl-2"
                         orientation="vertical"
-                        value={selected ? activeTab : undefined}
-                        onValueChange={(tab) => onSelectTab(instance.name, String(tab))}
+                        value={selected ? (activeTab ?? null) : null}
+                        onValueChange={(tab, details) => {
+                          if (details.reason === "none") {
+                            onSelectTab(instance.name, String(tab))
+                          }
+                        }}
                       >
                         <TabsList
                           className="h-auto w-full items-stretch gap-0.5 bg-transparent p-0"
