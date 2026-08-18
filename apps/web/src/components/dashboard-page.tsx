@@ -1,6 +1,7 @@
 import { Dashboard, type DashboardView } from "@janus/features/dashboard"
 import { isInstanceDetailTab } from "@janus/features/instance-detail-tabs"
 import { useMatchRoute, useNavigate, useRouter } from "@tanstack/react-router"
+import { useEffect, useState } from "react"
 import { useNavigationState } from "./navigation-state"
 
 export function DashboardPage() {
@@ -9,14 +10,18 @@ export function DashboardPage() {
   const router = useRouter()
   const { api, liveScreenshot, platform } = router.options.context
   const { expandedInstance, setExpandedInstance } = useNavigationState()
+  const [routeHydrated, setRouteHydrated] = useState(false)
+  useEffect(() => setRouteHydrated(true), [])
   // The dashboard shell stays mounted above leaf routes. Deriving the view from the committed
   // match keeps the URL authoritative while disclosure state remains purely presentational.
+  // SPA shell hydration must retain the build-time dashboard view for the first browser render;
+  // Start may hand off from shell mode before React hydrates a directly requested instance route.
   const instanceRoute = matchRoute({
     to: "/instances/$instance/$tab",
     fuzzy: false,
   })
   const view: DashboardView =
-    instanceRoute && isInstanceDetailTab(instanceRoute.tab)
+    routeHydrated && instanceRoute && isInstanceDetailTab(instanceRoute.tab)
       ? {
           kind: "instance",
           instance: instanceRoute.instance,
