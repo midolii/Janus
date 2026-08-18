@@ -47,7 +47,7 @@
           "name": "biome"
         }
       },
-      "language_servers": ["biome", "tailwindcss-language-server", "..."],
+      "language_servers": ["biome", "tailwindcss-language-server", "vtsls", "!eslint"],
       "prettier": {
         "allowed": false
       }
@@ -63,7 +63,7 @@
           "name": "biome"
         }
       },
-      "language_servers": ["biome", "tailwindcss-language-server", "..."],
+      "language_servers": ["biome", "tailwindcss-language-server", "vtsls", "!eslint"],
       "prettier": {
         "allowed": false
       }
@@ -79,7 +79,7 @@
           "name": "biome"
         }
       },
-      "language_servers": ["biome", "tailwindcss-language-server", "..."],
+      "language_servers": ["biome", "tailwindcss-language-server", "vtsls", "!eslint"],
       "prettier": {
         "allowed": false
       }
@@ -95,7 +95,7 @@
           "name": "biome"
         }
       },
-      "language_servers": ["biome", "tailwindcss-language-server", "..."],
+      "language_servers": ["biome", "tailwindcss-language-server", "vtsls", "!eslint"],
       "prettier": {
         "allowed": false
       }
