@@ -76,8 +76,8 @@ export function LivePreviewWindow({
           animate={{ opacity: 1 }}
           exit={{ opacity: 1 }}
         >
+          {/* 最大化只改变窗口布局；保持节点身份稳定，避免卸载媒体画面并重建 WebSocket。 */}
           <motion.section
-            key={maximized ? "live-preview-maximized" : "live-preview-floating"}
             className={cn(
               "pointer-events-auto absolute flex min-h-12 flex-col overflow-hidden border border-white/16 bg-slate-950 text-white shadow-[0_30px_90px_-30px_rgba(15,23,42,0.9)] ring-1 ring-black/15 backdrop-blur-3xl",
               maximized
