@@ -9,7 +9,6 @@
     "includes": [
       "**",
       "!**/.agents",
-      "!**/.impeccable",
       "!**/.output",
       "!**/dist",
       "!**/storybook-static",
