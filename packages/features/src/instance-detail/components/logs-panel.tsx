@@ -1,7 +1,7 @@
 import type { JanusApiClient } from "@janus/api-client/client"
 import { cn } from "@janus/ui/lib/utils"
 import { useQuery } from "@tanstack/react-query"
-import { Pause, Play, RefreshCw, Search } from "lucide-react"
+import { ListCollapse, Pause, Play, RefreshCw, Search } from "lucide-react"
 import { animate, useReducedMotion } from "motion/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { logsQueryOptions } from "../../api/queries"
@@ -254,49 +254,73 @@ export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: st
     setExpandedSectionsById((current) => ({ ...current, [section.id]: !expanded }))
   }
 
+  function collapseAll() {
+    if (blocks.length === 0) {
+      return
+    }
+
+    prepareDisclosureToggle()
+    setExpandedById(Object.fromEntries(blocks.map((block) => [block.id, false] as const)))
+    setExpandedSectionsById(
+      Object.fromEntries(sections.map((section) => [section.id, false] as const)),
+    )
+  }
+
   return (
     <div className="mx-auto flex h-full min-h-0 max-w-6xl flex-col">
       <PageHeading title="实时日志" detail="当前通过 REST 轮询；切换到其他页面后会自动停止。" />
       <section className="mt-6 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.75rem] bg-slate-950 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.75)]">
         <div className="flex shrink-0 flex-col gap-3 border-white/10 border-b px-4 py-3 sm:flex-row sm:items-center">
-          <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-[0.85rem] bg-white/8 px-3 text-slate-300 focus-within:ring-2 focus-within:ring-blue-400/70">
-            <Search className="size-4 shrink-0 text-slate-500" aria-hidden="true" />
-            <span className="sr-only">搜索日志</span>
-            <input
-              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-600"
-              type="search"
-              value={search}
-              placeholder="搜索日志"
-              autoComplete="off"
-              aria-describedby="log-search-hint log-search-status"
-              onChange={(event) => {
-                setSearch(event.target.value)
-                setCurrentMatchIndex(0)
-              }}
-              onKeyDown={(event) => {
-                if (event.key !== "Enter") {
-                  return
-                }
-                event.preventDefault()
-                navigateMatch(event.shiftKey ? -1 : 1)
-              }}
-            />
-            <span
-              id="log-search-status"
-              className="shrink-0 text-slate-300 text-xs tabular-nums"
-              aria-live="polite"
+          <div className="flex min-w-0 flex-1 gap-2">
+            <button
+              className="flex size-11 shrink-0 items-center justify-center rounded-[0.85rem] bg-white/8 text-slate-300 transition-colors hover:bg-white/12 hover:text-white focus-visible:outline-2 focus-visible:outline-blue-400 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/8 disabled:hover:text-slate-300"
+              type="button"
+              aria-label="全部收起日志"
+              title="全部收起"
+              disabled={blocks.length === 0}
+              onClick={collapseAll}
             >
-              {searchActive
-                ? `${matches.length === 0 ? 0 : normalizedMatchIndex + 1}/${matches.length}`
-                : null}
-            </span>
-            <span
-              id="log-search-hint"
-              className="hidden shrink-0 text-[0.65rem] text-slate-400 lg:inline"
-            >
-              Enter / ⇧ Enter
-            </span>
-          </label>
+              <ListCollapse className="size-4" aria-hidden="true" />
+            </button>
+            <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-[0.85rem] bg-white/8 px-3 text-slate-300 focus-within:ring-2 focus-within:ring-blue-400/70">
+              <Search className="size-4 shrink-0 text-slate-500" aria-hidden="true" />
+              <span className="sr-only">搜索日志</span>
+              <input
+                className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-600"
+                type="search"
+                value={search}
+                placeholder="搜索日志"
+                autoComplete="off"
+                aria-describedby="log-search-hint log-search-status"
+                onChange={(event) => {
+                  setSearch(event.target.value)
+                  setCurrentMatchIndex(0)
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") {
+                    return
+                  }
+                  event.preventDefault()
+                  navigateMatch(event.shiftKey ? -1 : 1)
+                }}
+              />
+              <span
+                id="log-search-status"
+                className="shrink-0 text-slate-300 text-xs tabular-nums"
+                aria-live="polite"
+              >
+                {searchActive
+                  ? `${matches.length === 0 ? 0 : normalizedMatchIndex + 1}/${matches.length}`
+                  : null}
+              </span>
+              <span
+                id="log-search-hint"
+                className="hidden shrink-0 text-[0.65rem] text-slate-400 lg:inline"
+              >
+                Enter / ⇧ Enter
+              </span>
+            </label>
+          </div>
           <div className="flex gap-2">
             <button
               className="flex min-h-11 items-center gap-2 rounded-[0.85rem] bg-white/8 px-3.5 font-medium text-slate-300 text-xs transition-colors hover:bg-white/12 hover:text-white focus-visible:outline-2 focus-visible:outline-blue-400 focus-visible:outline-offset-2"
