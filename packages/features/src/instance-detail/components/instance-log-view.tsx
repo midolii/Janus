@@ -45,6 +45,7 @@ interface InstanceLogSectionProps {
   expanded: boolean
   expandedByBlockId: Readonly<Record<string, boolean>>
   currentLineId: string | null
+  instant: boolean
   reduceMotion: boolean
   search: string
   searchActive: boolean
@@ -58,6 +59,7 @@ export function InstanceLogSection({
   expanded,
   expandedByBlockId,
   currentLineId,
+  instant,
   reduceMotion,
   search,
   searchActive,
@@ -73,6 +75,7 @@ export function InstanceLogSection({
           block={block}
           currentLineId={currentLineId}
           expanded={blockExpanded}
+          instant={instant}
           nested={false}
           reduceMotion={reduceMotion}
           search={search}
@@ -85,6 +88,23 @@ export function InstanceLogSection({
 
   const lineCount = section.blocks.reduce((total, block) => total + block.lines.length, 0)
   const contentId = `${section.id}-content`
+  const blocksContent = section.blocks.map((block, index) => {
+    const blockExpanded = expandedByBlockId[block.id] ?? index === section.blocks.length - 1
+    return (
+      <LogBlockItem
+        key={block.id}
+        block={block}
+        currentLineId={currentLineId}
+        expanded={blockExpanded}
+        instant={instant}
+        nested
+        reduceMotion={reduceMotion}
+        search={search}
+        searchActive={searchActive}
+        onToggle={() => onToggleBlock(block, blockExpanded)}
+      />
+    )
+  })
 
   return (
     <article className="relative border-blue-300/10 border-y first:border-t-0">
@@ -121,32 +141,22 @@ export function InstanceLogSection({
 
       <AnimatePresence initial={false}>
         {expanded ? (
-          <motion.div
-            id={contentId}
-            key="section-content"
-            initial={{ opacity: 0, y: reduceMotion ? 0 : -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: reduceMotion ? 0 : -4 }}
-            transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {section.blocks.map((block, index) => {
-              const blockExpanded =
-                expandedByBlockId[block.id] ?? index === section.blocks.length - 1
-              return (
-                <LogBlockItem
-                  key={block.id}
-                  block={block}
-                  currentLineId={currentLineId}
-                  expanded={blockExpanded}
-                  nested
-                  reduceMotion={reduceMotion}
-                  search={search}
-                  searchActive={searchActive}
-                  onToggle={() => onToggleBlock(block, blockExpanded)}
-                />
-              )
-            })}
-          </motion.div>
+          instant ? (
+            <div id={contentId} key="section-content">
+              {blocksContent}
+            </div>
+          ) : (
+            <motion.div
+              id={contentId}
+              key="section-content"
+              initial={{ opacity: 0, y: reduceMotion ? 0 : -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: reduceMotion ? 0 : -4 }}
+              transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {blocksContent}
+            </motion.div>
+          )
         ) : null}
       </AnimatePresence>
     </article>
@@ -157,6 +167,7 @@ function LogBlockItem({
   block,
   currentLineId,
   expanded,
+  instant,
   nested,
   reduceMotion,
   search,
@@ -166,12 +177,27 @@ function LogBlockItem({
   block: LogBlock
   currentLineId: string | null
   expanded: boolean
+  instant: boolean
   nested: boolean
   reduceMotion: boolean
   search: string
   searchActive: boolean
   onToggle: () => void
 }) {
+  const linesContent = (
+    <div className="min-w-max pb-2 font-mono text-[0.72rem] text-slate-300 leading-5.5">
+      {block.lines.map((line) => (
+        <LogLine
+          key={line.id}
+          line={line}
+          current={line.id === currentLineId}
+          nested={nested}
+          search={search}
+          searchActive={searchActive}
+        />
+      ))}
+    </div>
+  )
   return (
     <article
       className={cn(
@@ -218,28 +244,23 @@ function LogBlockItem({
       </button>
       <AnimatePresence initial={false}>
         {expanded ? (
-          <motion.div
-            id={`${block.id}-content`}
-            key="content"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden"
-          >
-            <div className="min-w-max pb-2 font-mono text-[0.72rem] text-slate-300 leading-5.5">
-              {block.lines.map((line) => (
-                <LogLine
-                  key={line.id}
-                  line={line}
-                  current={line.id === currentLineId}
-                  nested={nested}
-                  search={search}
-                  searchActive={searchActive}
-                />
-              ))}
+          instant ? (
+            <div id={`${block.id}-content`} className="overflow-hidden">
+              {linesContent}
             </div>
-          </motion.div>
+          ) : (
+            <motion.div
+              id={`${block.id}-content`}
+              key="content"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+              className="overflow-hidden"
+            >
+              {linesContent}
+            </motion.div>
+          )
         ) : null}
       </AnimatePresence>
     </article>

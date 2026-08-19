@@ -1,6 +1,6 @@
 import { DateDisplay } from "@janus/ui/components/date-display"
 import { renderToStaticMarkup } from "react-dom/server"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 describe("DateDisplay", () => {
   it("renders a semantic absolute date", () => {
@@ -31,5 +31,28 @@ describe("DateDisplay", () => {
 
   it("uses a fallback for a missing value", () => {
     expect(renderToStaticMarkup(<DateDisplay value={null} fallback="暂无" />)).toContain("暂无")
+  })
+
+  it("reuses cached formatters across repeated renders with identical options", () => {
+    const originalDateTimeFormat = Intl.DateTimeFormat
+    const spy = vi
+      .spyOn(Intl, "DateTimeFormat")
+      .mockImplementation(
+        (...args: ConstructorParameters<typeof Intl.DateTimeFormat>) =>
+          new originalDateTimeFormat(...args),
+      )
+    try {
+      const props = {
+        value: new Date("2026-08-18T01:31:08.686Z"),
+        locale: "zh-CN",
+        options: { day: "2-digit", month: "2-digit", year: "numeric" } as const,
+      }
+      renderToStaticMarkup(<DateDisplay {...props} />)
+      const callsAfterFirstRender = spy.mock.calls.length
+      renderToStaticMarkup(<DateDisplay {...props} />)
+      expect(spy.mock.calls.length).toBe(callsAfterFirstRender)
+    } finally {
+      spy.mockRestore()
+    }
   })
 })

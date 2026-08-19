@@ -32,6 +32,37 @@ const defaultAbsoluteOptions: Intl.DateTimeFormatOptions = {
   month: "numeric",
 }
 
+const absoluteFormatterCache = new Map<string, Intl.DateTimeFormat>()
+const fullFormatterCache = new Map<string, Intl.DateTimeFormat>()
+
+function formatterCacheKey(
+  locale: Intl.LocalesArgument,
+  timeZone: string,
+  options: Intl.DateTimeFormatOptions,
+): string {
+  const serialized = Object.entries(options)
+    .filter(([, value]) => value !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([key, value]) => `${key}:${String(value)}`)
+    .join(",")
+  return `${String(locale)}|${timeZone}|${serialized}`
+}
+
+function getCachedFormatter(
+  cache: Map<string, Intl.DateTimeFormat>,
+  locale: Intl.LocalesArgument,
+  timeZone: string,
+  options: Intl.DateTimeFormatOptions,
+): Intl.DateTimeFormat {
+  const key = formatterCacheKey(locale, timeZone, options)
+  let formatter = cache.get(key)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, { ...options, timeZone })
+    cache.set(key, formatter)
+  }
+  return formatter
+}
+
 /**
  * The single date rendering boundary for Janus. Callers provide the semantic date while this
  * component owns locale formatting and the native machine-readable <time> value.
@@ -54,13 +85,14 @@ export function DateDisplay({
   const content =
     mode === "relative" && referenceTime !== undefined
       ? formatRelativeDate(date, referenceTime, locale, options)
-      : new Intl.DateTimeFormat(locale, {
-          ...(options ?? defaultAbsoluteOptions),
+      : getCachedFormatter(
+          absoluteFormatterCache,
+          locale,
           timeZone,
-        }).format(date)
-  const title = new Intl.DateTimeFormat(locale, {
+          options ?? defaultAbsoluteOptions,
+        ).format(date)
+  const title = getCachedFormatter(fullFormatterCache, locale, timeZone, {
     dateStyle: "full",
-    timeZone,
     timeStyle: "medium",
   }).format(date)
 

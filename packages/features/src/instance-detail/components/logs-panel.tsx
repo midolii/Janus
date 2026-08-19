@@ -36,6 +36,7 @@ export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: st
   const resumeFollowingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const suppressFollowFromLayoutRef = useRef(false)
   const hasInitialScrollRef = useRef(false)
+  const instantToggleRef = useRef(false)
   const reduceMotion = useReducedMotion()
   const logs = useQuery({
     ...logsQueryOptions(api, instance, 200),
@@ -226,6 +227,11 @@ export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: st
     [stopScrollAnimation],
   )
 
+  // Reset the one-shot flag after the commit so only the batched toggleAll render reads `true`.
+  useEffect(() => {
+    instantToggleRef.current = false
+  })
+
   function navigateMatch(direction: 1 | -1) {
     if (matches.length === 0) {
       return
@@ -276,6 +282,7 @@ export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: st
     }
 
     prepareDisclosureToggle()
+    instantToggleRef.current = true
     setExpandedById(Object.fromEntries(blocks.map((block) => [block.id, allCollapsed] as const)))
     setExpandedSectionsById(
       Object.fromEntries(sections.map((section) => [section.id, allCollapsed] as const)),
@@ -433,6 +440,7 @@ export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: st
                     currentLineId={currentMatch?.lineId ?? null}
                     expanded={expanded}
                     expandedByBlockId={expandedById}
+                    instant={instantToggleRef.current}
                     reduceMotion={Boolean(reduceMotion)}
                     search={search}
                     searchActive={searchActive}
