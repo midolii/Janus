@@ -47,8 +47,8 @@ export function DashboardSidebar({
     <aside className="flex min-h-0 shrink-0 flex-col overflow-hidden border-white/65 border-b bg-white/36 p-3 sm:p-4 md:grid md:grid-cols-[auto_minmax(0,1fr)] md:items-center md:gap-4 lg:flex lg:grid-cols-none lg:items-stretch lg:gap-0 lg:border-r lg:border-b-0 lg:p-5">
       <div className="flex items-center justify-between gap-4 lg:justify-start">
         <img
-          src="/icons/icon-192.png"
-          srcSet="/icons/icon-48.png 1x, /icons/icon-192.png 2x, /icons/icon-512.png 3x"
+          src="/icons/icon-512.png"
+          srcSet="/icons/icon-512.png 1x, /icons/icon-512.png 2x, /icons/icon-1024.png 3x"
           alt="Janus"
           className="size-11 rounded-[0.9rem] shadow-[0_10px_24px_-14px_rgba(15,23,42,0.75)]"
         />
