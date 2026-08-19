@@ -37,10 +37,10 @@ describe("DateDisplay", () => {
     const originalDateTimeFormat = Intl.DateTimeFormat
     const spy = vi
       .spyOn(Intl, "DateTimeFormat")
-      .mockImplementation(
-        (...args: ConstructorParameters<typeof Intl.DateTimeFormat>) =>
-          new originalDateTimeFormat(...args),
-      )
+      // biome-ignore lint/complexity/useArrowFunction: 必须用 function 表达式才能作为构造函数被 new 调用
+      .mockImplementation(function (...args: ConstructorParameters<typeof Intl.DateTimeFormat>) {
+        return new originalDateTimeFormat(...args)
+      })
     try {
       const props = {
         value: new Date("2026-08-18T01:31:08.686Z"),
