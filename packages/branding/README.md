@@ -7,7 +7,7 @@ Shared Janus brand assets for web, PWA, and the future Electron shell.
 - `source/janus-icon-1024.png` — canonical 1024x1024 PNG source (8-bit RGBA).
 - `web/` — files served by `apps/web` as Vite's `publicDir`.
   - `icons/favicon.ico`, `icons/icon-192.png`, `icons/icon-512.png`, and related sizes.
-  - `site.webmanifest` — PWA manifest used by `/icons/site.webmanifest`.
+  - `icons/site.webmanifest` — PWA manifest used by `/icons/site.webmanifest`.
 - `electron/` — reserved for the future Electron app.
   - `icon.png`, `icon.ico`, and `icon.icns`.
 
