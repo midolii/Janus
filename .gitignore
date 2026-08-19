@@ -16,6 +16,9 @@ test-results/
 *.log
 *.tsbuildinfo
 
+# Browser automation artifacts.
+.playwright-mcp/
+
 # Personal design skill and its generated project state.
 .agents/skills/impeccable/
 .impeccable/
