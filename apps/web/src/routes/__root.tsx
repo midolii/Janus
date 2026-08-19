@@ -28,6 +28,25 @@ export const Route = createRootRouteWithContext<RouterContext>()({
         rel: "stylesheet",
         href: appCss,
       },
+      {
+        rel: "icon",
+        href: "/icons/favicon.ico",
+        sizes: "32x32",
+      },
+      {
+        rel: "icon",
+        href: "/icons/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        rel: "apple-touch-icon",
+        href: "/icons/apple-touch-icon.png",
+      },
+      {
+        rel: "manifest",
+        href: "/icons/site.webmanifest",
+      },
     ],
   }),
   component: ApplicationShell,

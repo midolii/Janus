@@ -18,6 +18,7 @@ const config = defineConfig(({ command, mode }) => {
     : undefined
 
   return {
+    publicDir: "../../packages/branding/web",
     resolve: { tsconfigPaths: true },
     plugins: [devtools(), tailwindcss(), tanstackStart({ spa: { enabled: true } }), viteReact()],
     server:
