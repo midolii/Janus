@@ -13,10 +13,12 @@ describe("InstanceNavigation", () => {
           { id: "config", label: "配置", icon: Settings2 },
         ]}
         dashboardActive={false}
+        updateActive={true}
         activeInstance="alas"
         activeTab="config"
         expandedInstance="alas"
         onSelectDashboard={() => undefined}
+        onSelectUpdate={() => undefined}
         onSelectInstance={() => undefined}
         onSelectTab={() => undefined}
       />,
@@ -27,5 +29,8 @@ describe("InstanceNavigation", () => {
     expect(markup.match(/aria-selected="true"/g)).toHaveLength(2)
     expect(markup.match(/data-slot="tabs-list"/g)).toHaveLength(2)
     expect(markup.match(/data-slot="tabs-trigger"/g)).toHaveLength(4)
+    expect(markup).toContain("核心更新")
+    expect(markup).toContain("min-h-11 w-full")
+    expect(markup).toContain("bg-slate-900/[0.07] text-slate-950")
   })
 })

@@ -37,8 +37,19 @@ export interface LiveScreenshotStreamResponse {
 export interface ConfigResponse {
   instance: string
   module: string
+  revision: string
   values: Record<string, unknown>
   redactedPaths: string[]
+}
+
+export interface ConfigChangeRequest {
+  path: string
+  value: unknown
+}
+
+export interface ConfigPatchRequest {
+  expectedRevision: string
+  changes: ConfigChangeRequest[]
 }
 
 export interface ConfigOptionResponse {
@@ -104,6 +115,20 @@ export interface TaskListResponse {
   disabled: TaskResponse[]
 }
 
+export interface InstanceActionResponse {
+  action: "start" | "stop"
+  changed: boolean
+  instance: InstanceResponse
+}
+
+export interface TaskActionResponse {
+  instance: string
+  task: string
+  action: "runNow"
+  scheduledAt: string
+  schedulerRunning: boolean
+}
+
 export interface LogTailResponse {
   instance: string
   source: string
@@ -117,6 +142,37 @@ export interface LogTailResponse {
 export interface LogLineResponse {
   content: string
   timestampMs: number | null
+}
+
+export interface CoreCommitResponse {
+  sha1: string
+  author: string
+  committedAt: string
+  message: string
+}
+
+export type CoreUpdateStatus =
+  | "upToDate"
+  | "updateAvailable"
+  | "checking"
+  | "failed"
+  | "starting"
+  | "waitingForInstances"
+  | "updating"
+  | "restarting"
+  | "finished"
+  | "canceling"
+  | "unknown"
+
+export interface CoreUpdateResponse {
+  status: CoreUpdateStatus
+  available: boolean
+  enabled: boolean
+  sourceRepository: string
+  sourceBranch: string
+  localCommit: CoreCommitResponse | null
+  upstreamCommit: CoreCommitResponse | null
+  history: CoreCommitResponse[]
 }
 
 export interface ErrorResponse {

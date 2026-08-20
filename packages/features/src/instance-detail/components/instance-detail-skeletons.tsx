@@ -1,10 +1,9 @@
 import { cn } from "@janus/ui/lib/utils"
 
 const taskSkeletonGroups = [
-  { id: "running", rows: 1 },
-  { id: "pending", rows: 2 },
-  { id: "waiting", rows: 2 },
-  { id: "disabled", rows: 1 },
+  { id: "running", rows: 2 },
+  { id: "pending", rows: 3 },
+  { id: "waiting", rows: 3 },
 ] as const
 
 const configMenuSkeletons = ["menu-1", "menu-2", "menu-3", "menu-4"] as const
@@ -42,7 +41,7 @@ function LoadingStatus({ label }: { label: string }) {
 export function OverviewHeroSkeleton() {
   return (
     <section
-      className="relative overflow-hidden rounded-[1.75rem] bg-[linear-gradient(130deg,rgba(22,99,140,0.98),rgba(18,61,88,0.96))] p-5 text-white shadow-[0_24px_54px_-32px_rgba(12,61,88,0.8)] sm:p-7"
+      className="relative overflow-hidden rounded-[1.75rem] bg-[#174c68] p-5 text-white ring-1 ring-white/20 sm:p-7"
       role="status"
       aria-busy="true"
     >
@@ -69,7 +68,7 @@ export function TaskSummarySkeleton() {
   return (
     <div role="status" aria-busy="true">
       <LoadingStatus label="正在加载队列摘要" />
-      <dl className="mt-5 grid gap-3 sm:grid-cols-3">
+      <dl className="mt-5 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
         {["running", "pending", "waiting"].map((item) => (
           <div key={item} className="rounded-2xl bg-slate-900/[0.035] px-4 py-3.5">
             <div className="flex min-h-4 items-center gap-2">
@@ -84,33 +83,55 @@ export function TaskSummarySkeleton() {
   )
 }
 
-/** Matches task group headings and the responsive two-column task rows. */
+/** Matches the three independent queue columns and their internal scrolling viewports. */
 export function TasksContentSkeleton() {
   return (
-    <div className="divide-y divide-slate-900/6" role="status" aria-busy="true">
+    <div
+      className="grid min-h-full gap-4 xl:h-full xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
+      role="status"
+      aria-busy="true"
+    >
       <LoadingStatus label="正在加载任务队列" />
-      {taskSkeletonGroups.map((group) => (
-        <section key={group.id} className="px-5 py-5 sm:px-6">
-          <div className="mb-3 flex min-h-4 items-center gap-2">
-            <Skeleton className="size-4" />
-            <Skeleton className="h-2.5 w-12" />
-            <Skeleton className="h-2.5 w-3" />
-          </div>
-          <div className="grid gap-1 lg:grid-cols-2">
-            {Array.from({ length: group.rows }, (_, index) => `${group.id}-${index}`).map((row) => (
-              <div key={row} className="flex min-h-14 items-center gap-3 rounded-[0.95rem] px-3">
-                <Skeleton className="size-2 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <Skeleton className="h-3 w-2/5 min-w-20" />
-                  <Skeleton className="mt-2 h-2.5 w-16" />
-                </div>
-                <Skeleton className="h-2.5 w-20 shrink-0" />
-              </div>
-            ))}
-          </div>
-        </section>
-      ))}
+      <div className="contents xl:grid xl:min-h-0 xl:grid-rows-[minmax(12rem,0.4fr)_minmax(16rem,0.6fr)] xl:gap-4">
+        <TaskQueueSkeleton group={taskSkeletonGroups[0]} showAction={false} />
+        <TaskQueueSkeleton group={taskSkeletonGroups[1]} />
+      </div>
+      <TaskQueueSkeleton group={taskSkeletonGroups[2]} />
     </div>
+  )
+}
+
+function TaskQueueSkeleton({
+  group,
+  showAction = true,
+}: {
+  group: (typeof taskSkeletonGroups)[number]
+  showAction?: boolean
+}) {
+  return (
+    <section className="flex min-h-64 flex-col overflow-hidden rounded-[1.75rem] border border-slate-900/8 bg-white/68 xl:min-h-0">
+      <div className="flex min-h-14 shrink-0 items-center gap-2 border-slate-900/6 border-b px-5">
+        <Skeleton className="size-4" />
+        <Skeleton className="h-2.5 w-12" />
+        <Skeleton className="h-2.5 w-3" />
+      </div>
+      <div className="min-h-0 flex-1 space-y-2 px-3 py-3 xl:overflow-hidden">
+        {Array.from({ length: group.rows }, (_, index) => `${group.id}-${index}`).map((row) => (
+          <div
+            key={row}
+            className="flex min-h-16 items-center gap-3 rounded-2xl border border-slate-900/6 px-3"
+          >
+            <Skeleton className="h-2.5 w-4 shrink-0" />
+            <Skeleton className="size-2 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <Skeleton className="h-3 w-2/5 min-w-20" />
+              <Skeleton className="mt-2 h-2.5 w-16" />
+            </div>
+            {showAction ? <Skeleton className="h-8 w-16 shrink-0 rounded-lg" /> : null}
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -123,7 +144,7 @@ export function ConfigWorkspaceSkeleton() {
       aria-busy="true"
     >
       <LoadingStatus label="正在加载配置" />
-      <aside className="hidden min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl bg-white/62 p-3 shadow-[0_20px_50px_-38px_rgba(15,23,42,0.55)] backdrop-blur-2xl lg:flex">
+      <aside className="hidden min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl bg-white/62 p-3 ring-1 ring-slate-900/6 backdrop-blur-2xl lg:flex">
         <Skeleton className="mx-3 my-2 h-2.5 w-14" />
         <div className="min-h-0 flex-1 space-y-1 overflow-hidden">
           <div className="rounded-[0.85rem] bg-slate-950 px-3 py-3.5">
@@ -150,7 +171,7 @@ export function ConfigWorkspaceSkeleton() {
         </div>
       </aside>
 
-      <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl bg-white/62 shadow-[0_20px_50px_-38px_rgba(15,23,42,0.55)] backdrop-blur-2xl">
+      <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl bg-white/62 ring-1 ring-slate-900/6 backdrop-blur-2xl">
         <div className="shrink-0 border-slate-900/6 border-b px-4 py-4 sm:px-6 sm:py-5">
           <div className="flex min-h-12 items-center gap-3 rounded-[0.95rem] bg-slate-900/[0.035] px-3 lg:hidden">
             <Skeleton className="size-8 shrink-0 rounded-xl" />

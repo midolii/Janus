@@ -9,8 +9,10 @@ import {
 } from "../api/queries"
 import { ConfigPanel } from "./components/config-panel"
 import { ErrorPanel } from "./components/instance-panel-primitives"
-import { OverviewPanel, TasksPanel } from "./components/instance-summary-panels"
 import { LogsPanel } from "./components/logs-panel"
+import { OverviewPanel } from "./components/overview-panel"
+import { TasksPanel } from "./components/tasks-panel"
+import { useInstanceMutations } from "./hooks/use-instance-mutations"
 import type { InstanceDetailTab } from "./instance-detail-tabs"
 
 export interface InstanceDetailProps {
@@ -22,6 +24,7 @@ export interface InstanceDetailProps {
 /** Coordinates data dependencies and delegates each routed tab to a focused panel component. */
 export function InstanceDetail({ api, instance, activeTab }: InstanceDetailProps) {
   const reduceMotion = useReducedMotion()
+  const mutations = useInstanceMutations(api, instance)
   const instanceQuery = useQuery(instanceQueryOptions(api, instance))
   const tasks = useQuery({
     ...tasksQueryOptions(api, instance),
@@ -60,7 +63,18 @@ export function InstanceDetail({ api, instance, activeTab }: InstanceDetailProps
               />
             ) : null}
             {activeTab === "tasks" ? (
-              <TasksPanel data={tasks.data} pending={tasks.isPending} error={tasks.error} />
+              <TasksPanel
+                data={tasks.data}
+                pending={tasks.isPending}
+                error={tasks.error}
+                runningTaskName={
+                  mutations.taskMutation.isPending
+                    ? (mutations.taskMutation.variables ?? null)
+                    : null
+                }
+                actionError={mutations.taskMutation.error}
+                onRunNow={(task) => mutations.taskMutation.mutate(task)}
+              />
             ) : null}
             {activeTab === "config" ? (
               <ConfigPanel
@@ -68,6 +82,8 @@ export function InstanceDetail({ api, instance, activeTab }: InstanceDetailProps
                 schema={configSchema.data}
                 pending={config.isPending || configSchema.isPending}
                 error={config.error ?? configSchema.error}
+                saveError={mutations.configMutation.error}
+                onSave={(request) => mutations.configMutation.mutateAsync(request)}
               />
             ) : null}
             {activeTab === "logs" ? <LogsPanel api={api} instance={instance} /> : null}

@@ -2,7 +2,9 @@ import type { ErrorResponse } from "./contracts"
 
 export interface TransportRequest {
   path: string
+  method?: "GET" | "PATCH" | "POST"
   query?: Record<string, string | number | boolean | undefined>
+  body?: unknown
   signal?: AbortSignal
 }
 
@@ -38,7 +40,7 @@ export class FetchTransport implements ApiTransport {
     this.#fetcher = options.fetcher ?? globalThis.fetch.bind(globalThis)
   }
 
-  async request<T>({ path, query, signal }: TransportRequest): Promise<T> {
+  async request<T>({ path, method = "GET", query, body, signal }: TransportRequest): Promise<T> {
     const search = new URLSearchParams()
     for (const [key, value] of Object.entries(query ?? {})) {
       if (value !== undefined) {
@@ -48,10 +50,13 @@ export class FetchTransport implements ApiTransport {
 
     const suffix = search.size > 0 ? `?${search.toString()}` : ""
     const response = await this.#fetcher(`${this.#baseUrl}/${path.replace(/^\//, "")}${suffix}`, {
+      body: body === undefined ? undefined : JSON.stringify(body),
       credentials: this.#credentials,
       headers: {
         Accept: "application/json",
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
       },
+      method,
       signal,
     })
 
@@ -60,15 +65,15 @@ export class FetchTransport implements ApiTransport {
       throw new ApiError("API returned a non-JSON response", response.status, "invalid_response")
     }
 
-    const body = (await response.json()) as T | ErrorResponse
+    const responseBody = (await response.json()) as T | ErrorResponse
     if (!response.ok) {
-      const detail = isErrorResponse(body)
-        ? body.error
+      const detail = isErrorResponse(responseBody)
+        ? responseBody.error
         : { code: "request_failed", message: response.statusText }
       throw new ApiError(detail.message, response.status, detail.code)
     }
 
-    return body as T
+    return responseBody as T
   }
 }
 

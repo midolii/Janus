@@ -19,13 +19,16 @@ const tabs = [
 ]
 
 function InteractiveNavigation(
-  props: Pick<InstanceNavigationProps, "dashboardActive" | "activeInstance" | "activeTab">,
+  props: Pick<
+    InstanceNavigationProps,
+    "dashboardActive" | "updateActive" | "activeInstance" | "activeTab"
+  >,
 ) {
   const [view, setView] = useState(props)
   const [expandedInstance, setExpandedInstance] = useState(props.activeInstance)
 
   return (
-    <div className="flex h-dvh flex-col bg-[linear-gradient(145deg,#e5eef2,#cfdee6)] p-4">
+    <div className="flex h-dvh flex-col bg-[#dce9ef] p-4">
       <div className="flex min-h-0 flex-1 flex-col rounded-4xl border border-white/70 bg-white/48 p-4 backdrop-blur-2xl lg:w-66">
         <div className="flex items-center gap-3">
           <div className="flex size-11 items-center justify-center rounded-[0.9rem] bg-slate-950 font-semibold text-lg text-white">
@@ -40,6 +43,7 @@ function InteractiveNavigation(
           instances={instances}
           tabs={tabs}
           dashboardActive={view.dashboardActive}
+          updateActive={view.updateActive}
           activeInstance={view.activeInstance}
           activeTab={view.activeTab}
           expandedInstance={expandedInstance}
@@ -49,7 +53,9 @@ function InteractiveNavigation(
               受保护连接
             </div>
           }
-          onSelectDashboard={() => setView({ dashboardActive: true })}
+          onSelectDashboard={() => setView({ dashboardActive: true, updateActive: false })}
+          onSelectUpdate={() => setView({ dashboardActive: false, updateActive: true })}
+          onToggleInstanceRunning={() => undefined}
           onSelectInstance={(instance) => {
             if (expandedInstance === instance) {
               setExpandedInstance(undefined)
@@ -57,11 +63,21 @@ function InteractiveNavigation(
             }
 
             setExpandedInstance(instance)
-            setView({ dashboardActive: false, activeInstance: instance, activeTab: "overview" })
+            setView({
+              dashboardActive: false,
+              updateActive: false,
+              activeInstance: instance,
+              activeTab: "overview",
+            })
           }}
           onSelectTab={(instance, tab) => {
             setExpandedInstance(instance)
-            setView({ dashboardActive: false, activeInstance: instance, activeTab: tab })
+            setView({
+              dashboardActive: false,
+              updateActive: false,
+              activeInstance: instance,
+              activeTab: tab,
+            })
           }}
         />
       </div>
@@ -76,7 +92,9 @@ const meta = preview.meta({
     instances,
     tabs,
     dashboardActive: false,
+    updateActive: false,
     onSelectDashboard: () => undefined,
+    onSelectUpdate: () => undefined,
     onSelectInstance: () => undefined,
     onSelectTab: () => undefined,
   },
@@ -90,7 +108,12 @@ export const Mobile = meta.story({
     viewport: { value: "mobile1", isRotated: false },
   },
   render: () => (
-    <InteractiveNavigation dashboardActive={false} activeInstance="alas" activeTab="config" />
+    <InteractiveNavigation
+      dashboardActive={false}
+      updateActive={false}
+      activeInstance="alas"
+      activeTab="config"
+    />
   ),
 })
 
@@ -99,12 +122,22 @@ export const Tablet = meta.story({
     viewport: { value: "tablet", isRotated: false },
   },
   render: () => (
-    <InteractiveNavigation dashboardActive={false} activeInstance="alas" activeTab="tasks" />
+    <InteractiveNavigation
+      dashboardActive={false}
+      updateActive={false}
+      activeInstance="alas"
+      activeTab="tasks"
+    />
   ),
 })
 
 export const Desktop = meta.story({
   render: () => (
-    <InteractiveNavigation dashboardActive={false} activeInstance="alas" activeTab="overview" />
+    <InteractiveNavigation
+      dashboardActive={false}
+      updateActive={false}
+      activeInstance="alas"
+      activeTab="overview"
+    />
   ),
 })

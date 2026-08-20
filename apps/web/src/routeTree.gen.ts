@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as UpdateRouteImport } from './routes/update'
 import { Route as InstancesInstanceTabRouteImport } from './routes/instances/$instance/$tab'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UpdateRoute = UpdateRouteImport.update({
+  id: '/update',
+  path: '/update',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InstancesInstanceTabRoute = InstancesInstanceTabRouteImport.update({
@@ -25,27 +31,31 @@ const InstancesInstanceTabRoute = InstancesInstanceTabRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/update': typeof UpdateRoute
   '/instances/$instance/$tab': typeof InstancesInstanceTabRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/update': typeof UpdateRoute
   '/instances/$instance/$tab': typeof InstancesInstanceTabRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/update': typeof UpdateRoute
   '/instances/$instance/$tab': typeof InstancesInstanceTabRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/instances/$instance/$tab'
+  fullPaths: '/' | '/update' | '/instances/$instance/$tab'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/instances/$instance/$tab'
-  id: '__root__' | '/' | '/instances/$instance/$tab'
+  to: '/' | '/update' | '/instances/$instance/$tab'
+  id: '__root__' | '/' | '/update' | '/instances/$instance/$tab'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  UpdateRoute: typeof UpdateRoute
   InstancesInstanceTabRoute: typeof InstancesInstanceTabRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/update': {
+      id: '/update'
+      path: '/update'
+      fullPath: '/update'
+      preLoaderRoute: typeof UpdateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/instances/$instance/$tab': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  UpdateRoute: UpdateRoute,
   InstancesInstanceTabRoute: InstancesInstanceTabRoute,
 }
 export const routeTree = rootRouteImport

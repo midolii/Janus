@@ -21,5 +21,8 @@ import * as Stories from "./instance-navigation.stories"
 - 二级导航由 shadcn `Tabs` 承载，复用其键盘导航与 ARIA 语义；基础组件位于独立的 `Shadcn/Tabs` 目录。
 - 展开的实例使用黑底表示主层级，选中的二级 Tab 使用浅灰底；hover 不提升为白色，避免层级反转。
 - 页面状态由调用方控制，因此 Web 与 Electron 可以共用组件而不共享路由实现。
+- 实例启停按钮与展开按钮是两个同级交互区域；启停不会改变展开状态，绿色表示启动、珊瑚红表示停止。
+- `onSelectUpdate` 存在时会显示独立的核心更新入口，URL 与数据仍由上层应用控制。
+- 桌面端仪表盘与核心更新入口填满侧栏宽度，选中态复用实例二级 Tab 的浅灰底与深色文字；实例展开态继续使用黑底，保持导航层级清晰。
 
 <Canvas of={Stories.Desktop} />

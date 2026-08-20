@@ -24,16 +24,29 @@ body {
   min-width: 320px;
   overflow: hidden;
   background-color: #dce9ef;
-  background-image:
-    radial-gradient(circle at 12% 4%, rgb(255 255 255 / 92%) 0, transparent 34rem),
-    radial-gradient(circle at 90% 12%, rgb(103 194 206 / 34%) 0, transparent 30rem),
-    radial-gradient(circle at 72% 92%, rgb(97 144 180 / 26%) 0, transparent 34rem),
-    linear-gradient(145deg, #e5eef2 0%, #cfdee6 100%);
-  background-attachment: fixed;
 }
 
 .app-viewport {
+  --app-shell-padding: 0.75rem;
+
   height: 100vh;
+  background: #dce9ef;
+  padding-top: max(var(--app-shell-padding), env(safe-area-inset-top));
+  padding-right: max(var(--app-shell-padding), env(safe-area-inset-right));
+  padding-bottom: max(var(--app-shell-padding), env(safe-area-inset-bottom));
+  padding-left: max(var(--app-shell-padding), env(safe-area-inset-left));
+}
+
+@media (width >= 40rem) {
+  .app-viewport {
+    --app-shell-padding: 1.25rem;
+  }
+}
+
+@media (width >= 64rem) {
+  .app-viewport {
+    --app-shell-padding: 1.5rem;
+  }
 }
 
 @supports (height: 100dvh) {

@@ -1,10 +1,15 @@
 import type { JanusApiClient } from "@janus/api-client/client"
+import type { CoreUpdateStatus } from "@janus/api-client/contracts"
 import { ApiError } from "@janus/api-client/transport"
 import { queryOptions } from "@tanstack/react-query"
+
+export const DEFAULT_CORE_UPDATE_POLL_INTERVAL_MS = 60_000
+const BUSY_CORE_UPDATE_POLL_INTERVAL_MS = 1_000
 
 export const queryKeys = {
   health: ["health"] as const,
   system: ["system"] as const,
+  coreUpdate: ["updates", "core"] as const,
   instances: ["instances"] as const,
   instance: (instance: string) => ["instances", instance] as const,
   liveScreenshot: (instance: string) => ["instances", instance, "live-screenshot"] as const,
@@ -32,6 +37,32 @@ export function systemQueryOptions(api: JanusApiClient) {
     staleTime: 60_000,
     retry: retryApiRequest,
   })
+}
+
+export function coreUpdateQueryOptions(
+  api: JanusApiClient,
+  idleRefetchIntervalMs: number | false = DEFAULT_CORE_UPDATE_POLL_INTERVAL_MS,
+) {
+  return queryOptions({
+    queryKey: queryKeys.coreUpdate,
+    queryFn: ({ signal }) => api.coreUpdate(signal),
+    refetchInterval: (query) =>
+      getCoreUpdatePollInterval(query.state.data?.status, idleRefetchIntervalMs),
+    refetchIntervalInBackground: idleRefetchIntervalMs !== false,
+    staleTime: 2_000,
+    retry: retryApiRequest,
+  })
+}
+
+export function getCoreUpdatePollInterval(
+  status: CoreUpdateStatus | undefined,
+  idleRefetchIntervalMs: number | false,
+): number | false {
+  if (idleRefetchIntervalMs === false) {
+    return false
+  }
+
+  return isCoreUpdateBusy(status) ? BUSY_CORE_UPDATE_POLL_INTERVAL_MS : idleRefetchIntervalMs
 }
 
 export function instancesQueryOptions(api: JanusApiClient) {
@@ -109,4 +140,11 @@ function retryApiRequest(failureCount: number, error: Error) {
   }
 
   return failureCount < 2
+}
+
+function isCoreUpdateBusy(status: string | undefined): boolean {
+  return Boolean(
+    status &&
+      ["checking", "starting", "waitingForInstances", "updating", "restarting"].includes(status),
+  )
 }

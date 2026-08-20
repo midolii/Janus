@@ -1,16 +1,9 @@
-import {
-  LivePreviewWindow,
-  type LivePreviewWindowProps,
-} from "@janus/ui/components/live-preview-window"
+import { type LivePreviewMode, LivePreviewWindow } from "@janus/ui/components/live-preview-window"
 import { useState } from "react"
 import preview from "#.storybook/preview"
 
-function InteractiveWindow(
-  props: Pick<LivePreviewWindowProps, "open" | "minimized" | "maximized">,
-) {
-  const [open, setOpen] = useState(props.open)
-  const [minimized, setMinimized] = useState(props.minimized)
-  const [maximized, setMaximized] = useState(props.maximized)
+function InteractiveWindow({ initialMode }: { initialMode: LivePreviewMode }) {
+  const [mode, setMode] = useState(initialMode)
 
   return (
     <div className="h-dvh bg-[linear-gradient(145deg,#e6eff3,#cadde6)] p-5">
@@ -19,19 +12,12 @@ function InteractiveWindow(
         <p className="mt-1 text-slate-500 text-sm">浮窗独立于页面内容与路由存在。</p>
       </div>
       <LivePreviewWindow
-        open={open}
-        minimized={minimized}
-        maximized={maximized}
+        mode={mode}
         title="实时截图 · alas"
         statusLabel="scrcpy · 30 FPS"
         statusTone="success"
-        onOpen={() => setOpen(true)}
-        onClose={() => setOpen(false)}
-        onToggleMinimized={() => setMinimized((value) => !value)}
-        onToggleMaximized={() => {
-          setMinimized(false)
-          setMaximized((value) => !value)
-        }}
+        launcherStorageKey={`storybook.live-preview.${initialMode}`}
+        onModeChange={setMode}
       >
         <div className="absolute inset-0 grid place-items-center overflow-hidden bg-[radial-gradient(circle_at_50%_42%,#183b57,#05080d_66%)]">
           <div className="text-center">
@@ -51,13 +37,17 @@ const meta = preview.meta({
 })
 
 export const Floating = meta.story({
-  render: () => <InteractiveWindow open minimized={false} maximized={false} />,
+  render: () => <InteractiveWindow initialMode="windowed" />,
 })
 
 export const Launcher = meta.story({
-  render: () => <InteractiveWindow open={false} minimized={false} maximized={false} />,
+  render: () => <InteractiveWindow initialMode="closed" />,
 })
 
 export const Minimized = meta.story({
-  render: () => <InteractiveWindow open minimized maximized={false} />,
+  render: () => <InteractiveWindow initialMode="minimized" />,
+})
+
+export const Fullscreen = meta.story({
+  render: () => <InteractiveWindow initialMode="fullscreen" />,
 })

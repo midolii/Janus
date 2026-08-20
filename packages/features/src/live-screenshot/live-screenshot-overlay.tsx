@@ -2,6 +2,7 @@ import type { JanusApiClient } from "@janus/api-client/client"
 import type { InstanceResponse } from "@janus/api-client/contracts"
 import type { LiveScreenshotRuntime, LiveScreenshotStatus } from "@janus/api-client/live-screenshot"
 import {
+  type LivePreviewMode,
   type LivePreviewStatusTone,
   LivePreviewWindow,
 } from "@janus/ui/components/live-preview-window"
@@ -14,7 +15,7 @@ import {
 } from "@janus/ui/components/select"
 import { useQuery } from "@tanstack/react-query"
 import { MonitorPlay } from "lucide-react"
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { liveScreenshotQueryOptions } from "../api/queries"
 import { LiveScreenshotSurface } from "./live-screenshot-surface"
 
@@ -36,9 +37,7 @@ export function LiveScreenshotOverlay({
   instances,
   preferredInstance,
 }: LiveScreenshotOverlayProps) {
-  const [open, setOpen] = useState(false)
-  const [minimized, setMinimized] = useState(false)
-  const [maximized, setMaximized] = useState(false)
+  const [mode, setMode] = useState<LivePreviewMode>("closed")
   const [selectedInstance, setSelectedInstance] = useState<string | null>(null)
   const [streamStatus, setStreamStatus] = useState<LiveScreenshotStatus>(idleStatus)
   const instanceNames = instances.map((instance) => instance.name)
@@ -51,7 +50,7 @@ export function LiveScreenshotOverlay({
     fallbackInstance
   const descriptor = useQuery({
     ...liveScreenshotQueryOptions(api, activeInstance),
-    enabled: open && Boolean(activeInstance),
+    enabled: mode !== "closed" && Boolean(activeInstance),
   })
   const displayedStatus: LiveScreenshotStatus = descriptor.isError
     ? {
@@ -60,25 +59,22 @@ export function LiveScreenshotOverlay({
       }
     : streamStatus
 
-  function openPreview() {
-    setSelectedInstance(fallbackInstance)
-    setStreamStatus({ state: "connecting", message: "正在读取媒体连接" })
-    setOpen(true)
-    setMinimized(false)
-  }
-
-  function closePreview() {
-    setOpen(false)
-    setMinimized(false)
-    setMaximized(false)
-    setStreamStatus(idleStatus)
-  }
+  const changeMode = useCallback(
+    (nextMode: LivePreviewMode) => {
+      if (mode === "closed" && nextMode === "windowed") {
+        setSelectedInstance(fallbackInstance)
+        setStreamStatus({ state: "connecting", message: "正在读取媒体连接" })
+      } else if (nextMode === "closed") {
+        setStreamStatus(idleStatus)
+      }
+      setMode(nextMode)
+    },
+    [fallbackInstance, mode],
+  )
 
   return (
     <LivePreviewWindow
-      open={open}
-      minimized={minimized}
-      maximized={maximized}
+      mode={mode}
       title={activeInstance ? `实时截图 · ${activeInstance}` : "实时截图"}
       statusLabel={displayedStatus.message}
       statusTone={getStatusTone(displayedStatus)}
@@ -112,13 +108,7 @@ export function LiveScreenshotOverlay({
           </Select>
         ) : null
       }
-      onOpen={openPreview}
-      onClose={closePreview}
-      onToggleMinimized={() => setMinimized((value) => !value)}
-      onToggleMaximized={() => {
-        setMinimized(false)
-        setMaximized((value) => !value)
-      }}
+      onModeChange={changeMode}
     >
       {descriptor.isPending ? (
         <PreviewMessage title="正在连接" detail="正在读取 AzurPilot 媒体能力…" />

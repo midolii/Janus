@@ -57,13 +57,22 @@ const menu: ConfigMenuResponse = {
 const config: ConfigResponse = {
   instance: "alas",
   module: "alas",
+  revision: "revision",
   values: {},
   redactedPaths: [],
 }
 
 describe("config group renderer matching", () => {
   it("matches a reusable layout by stable group and field shape", () => {
-    const context = { moduleName: "alas", menu, task, group: emotionGroup, config }
+    const context = {
+      moduleName: "alas",
+      menu,
+      task,
+      group: emotionGroup,
+      config,
+      changes: {},
+      onFieldChange: () => undefined,
+    }
 
     expect(
       matchesConfigGroupRenderer(

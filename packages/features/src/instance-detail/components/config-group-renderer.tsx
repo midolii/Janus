@@ -5,10 +5,10 @@ import type {
   ConfigResponse,
   ConfigTaskResponse,
 } from "@janus/api-client/contracts"
-import { cn } from "@janus/ui/lib/utils"
-import { Check, LockKeyhole } from "lucide-react"
 import type { ComponentType } from "react"
-import { formatConfigValue, getConfigValue } from "../instance-detail-utils"
+import { getEffectiveConfigValue } from "../config-editor-utils"
+import { getConfigValue } from "../instance-detail-utils"
+import { ConfigField } from "./config-field"
 
 export interface ConfigGroupRendererProps {
   moduleName: string
@@ -16,6 +16,8 @@ export interface ConfigGroupRendererProps {
   task: ConfigTaskResponse
   group: ConfigGroupResponse
   config: ConfigResponse
+  changes: Record<string, unknown>
+  onFieldChange: (path: string, value: unknown) => void
 }
 
 export interface ConfigGroupRendererMatch {
@@ -85,10 +87,21 @@ export function getConfigGroupFieldValue(
   fieldName: string,
 ): unknown {
   const field = getConfigGroupField(context.group, fieldName)
-  return field ? getConfigValue(context.config.values, field.key) : undefined
+  return field
+    ? getEffectiveConfigValue(
+        context.changes,
+        field.key,
+        getConfigValue(context.config.values, field.key),
+      )
+    : undefined
 }
 
-function DefaultConfigGroupRenderer({ group, config }: ConfigGroupRendererProps) {
+function DefaultConfigGroupRenderer({
+  group,
+  config,
+  changes,
+  onFieldChange,
+}: ConfigGroupRendererProps) {
   return (
     <section className="px-5 py-5 sm:px-6">
       <h3 className="truncate font-medium text-sm" title={group.displayName || group.name}>
@@ -104,63 +117,17 @@ function DefaultConfigGroupRenderer({ group, config }: ConfigGroupRendererProps)
           <ConfigField
             key={field.key}
             field={field}
-            value={getConfigValue(config.values, field.key)}
+            value={getEffectiveConfigValue(
+              changes,
+              field.key,
+              getConfigValue(config.values, field.key),
+            )}
+            changed={Object.hasOwn(changes, field.key)}
             redacted={config.redactedPaths.includes(field.key)}
+            onChange={(value) => onFieldChange(field.key, value)}
           />
         ))}
       </dl>
     </section>
-  )
-}
-
-function ConfigField({
-  field,
-  value,
-  redacted,
-}: {
-  field: ConfigFieldResponse
-  value: unknown
-  redacted: boolean
-}) {
-  const option = field.options.find((item) => Object.is(item.value, value))
-  const displayValue =
-    redacted || field.sensitive ? "••••••" : (option?.label ?? formatConfigValue(value))
-  const booleanValue = typeof value === "boolean" ? value : undefined
-
-  return (
-    <div className="min-w-0 rounded-2xl bg-slate-900/[0.035] px-4 py-3.5">
-      <dt className="flex min-w-0 items-start justify-between gap-3">
-        <span
-          className="min-w-0 flex-1 truncate font-medium text-sm"
-          title={field.displayName || field.name}
-        >
-          {field.displayName || field.name}
-        </span>
-        {field.readOnly || field.display === "disabled" ? (
-          <LockKeyhole className="mt-0.5 size-3.5 shrink-0 text-slate-400" aria-label="只读" />
-        ) : null}
-      </dt>
-      <dd className="mt-2 flex min-h-6 min-w-0 items-center gap-2 text-slate-600 text-sm">
-        {booleanValue !== undefined && !redacted && !field.sensitive ? (
-          <span
-            className={cn(
-              "flex size-5 shrink-0 items-center justify-center rounded-md",
-              booleanValue ? "bg-blue-600 text-white" : "bg-slate-200 text-transparent",
-            )}
-            aria-hidden="true"
-          >
-            <Check className="size-3.5" />
-          </span>
-        ) : null}
-        <span className="min-w-0 flex-1 truncate" title={displayValue}>
-          {displayValue}
-        </span>
-      </dd>
-      {field.help ? (
-        <p className="wrap-break-word mt-2 whitespace-pre-wrap text-slate-500 text-xs leading-5">
-          {field.help}
-        </p>
-      ) : null}
-    </div>
   )
 }

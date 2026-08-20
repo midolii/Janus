@@ -4,6 +4,10 @@ import { useMatchRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { useEffect, useState } from "react"
 import { useNavigationState } from "./navigation-state"
 
+const coreUpdatePollIntervalMs = parsePositiveInterval(
+  import.meta.env.VITE_JANUS_CORE_UPDATE_POLL_INTERVAL_MS,
+)
+
 export function DashboardPage() {
   const matchRoute = useMatchRoute()
   const navigate = useNavigate()
@@ -20,6 +24,7 @@ export function DashboardPage() {
     to: "/instances/$instance/$tab",
     fuzzy: false,
   })
+  const updateRoute = matchRoute({ to: "/update", fuzzy: false })
   const view: DashboardView =
     routeHydrated && instanceRoute && isInstanceDetailTab(instanceRoute.tab)
       ? {
@@ -27,11 +32,18 @@ export function DashboardPage() {
           instance: instanceRoute.instance,
           tab: instanceRoute.tab,
         }
-      : { kind: "dashboard" }
+      : routeHydrated && updateRoute
+        ? { kind: "update" }
+        : { kind: "dashboard" }
 
   function navigateTo(nextView: DashboardView) {
     if (nextView.kind === "dashboard") {
       void navigate({ to: "/" })
+      return
+    }
+
+    if (nextView.kind === "update") {
+      void navigate({ to: "/update" })
       return
     }
 
@@ -51,8 +63,18 @@ export function DashboardPage() {
       platform={platform}
       activeView={view}
       expandedInstance={expandedInstance}
+      coreUpdatePollIntervalMs={coreUpdatePollIntervalMs}
       onExpandedInstanceChange={setExpandedInstance}
       onNavigate={navigateTo}
     />
   )
+}
+
+function parsePositiveInterval(value: string | undefined): number | undefined {
+  if (!value) {
+    return undefined
+  }
+
+  const interval = Number(value)
+  return Number.isFinite(interval) && interval > 0 ? interval : undefined
 }

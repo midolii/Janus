@@ -32,4 +32,28 @@ describe("FetchTransport", () => {
       expect.objectContaining({ code: "invalid_response" }),
     )
   })
+
+  it("serializes JSON mutation requests", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ revision: "next" }), {
+        headers: { "content-type": "application/json" },
+      }),
+    )
+    const transport = new FetchTransport({ fetcher })
+    const body = {
+      expectedRevision: "current",
+      changes: [{ path: "Alas.Emulator.Serial", value: "auto" }],
+    }
+
+    await transport.request({ path: "instances/alas/config", method: "PATCH", body })
+
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/v1/instances/alas/config",
+      expect.objectContaining({
+        body: JSON.stringify(body),
+        method: "PATCH",
+        headers: expect.objectContaining({ "Content-Type": "application/json" }),
+      }),
+    )
+  })
 })
