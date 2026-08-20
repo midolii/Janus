@@ -2,7 +2,6 @@ import { DateDisplay } from "@janus/ui/components/date-display"
 import { cn } from "@janus/ui/lib/utils"
 import AnsiImport from "ansi-to-react"
 import { ChevronRight, Layers3 } from "lucide-react"
-import { AnimatePresence, motion } from "motion/react"
 import type { ComponentType } from "react"
 import type { LogBlock, LogLevel, LogSection, ParsedLogLine } from "../instance-detail-utils"
 import { normalizeLogSearch } from "../instance-detail-utils"
@@ -40,166 +39,59 @@ interface AnsiProps {
 // instead of branching during render, keeping the server and client trees identical.
 const Ansi = resolveDefaultComponent<AnsiProps>(AnsiImport)
 
-interface InstanceLogSectionProps {
+interface LogSectionHeaderProps {
   section: LogSection
   expanded: boolean
-  expandedByBlockId: Readonly<Record<string, boolean>>
-  currentLineId: string | null
-  instant: boolean
-  reduceMotion: boolean
-  search: string
-  searchActive: boolean
-  onToggleSection: () => void
-  onToggleBlock: (block: LogBlock, expanded: boolean) => void
-}
-
-/** Renders logger.hr level 0 as an outer task and levels 1–2 as nested sticky blocks. */
-export function InstanceLogSection({
-  section,
-  expanded,
-  expandedByBlockId,
-  currentLineId,
-  instant,
-  reduceMotion,
-  search,
-  searchActive,
-  onToggleSection,
-  onToggleBlock,
-}: InstanceLogSectionProps) {
-  if (!section.explicit) {
-    return section.blocks.map((block, index) => {
-      const blockExpanded = expandedByBlockId[block.id] ?? index === section.blocks.length - 1
-      return (
-        <LogBlockItem
-          key={block.id}
-          block={block}
-          currentLineId={currentLineId}
-          expanded={blockExpanded}
-          instant={instant}
-          nested={false}
-          reduceMotion={reduceMotion}
-          search={search}
-          searchActive={searchActive}
-          onToggle={() => onToggleBlock(block, blockExpanded)}
-        />
-      )
-    })
-  }
-
-  const lineCount = section.blocks.reduce((total, block) => total + block.lines.length, 0)
-  const contentId = `${section.id}-content`
-  const blocksContent = section.blocks.map((block, index) => {
-    const blockExpanded = expandedByBlockId[block.id] ?? index === section.blocks.length - 1
-    return (
-      <LogBlockItem
-        key={block.id}
-        block={block}
-        currentLineId={currentLineId}
-        expanded={blockExpanded}
-        instant={instant}
-        nested
-        reduceMotion={reduceMotion}
-        search={search}
-        searchActive={searchActive}
-        onToggle={() => onToggleBlock(block, blockExpanded)}
-      />
-    )
-  })
-
-  return (
-    <article className="relative border-blue-300/10 border-y first:border-t-0">
-      <button
-        className="sticky top-0 z-20 flex min-h-11 w-full items-center gap-2.5 bg-slate-900/97 px-4 text-left shadow-[0_10px_24px_-22px_rgba(56,189,248,0.8)] backdrop-blur-xl transition-colors hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-blue-400 focus-visible:-outline-offset-2"
-        type="button"
-        aria-expanded={expanded}
-        aria-controls={contentId}
-        onClick={onToggleSection}
-      >
-        <ChevronRight
-          className={cn(
-            "size-4 shrink-0 text-sky-300/65 transition-transform",
-            expanded && "rotate-90",
-          )}
-          aria-hidden="true"
-        />
-        <Layers3 className="size-3.5 shrink-0 text-sky-300/80" aria-hidden="true" />
-        <DateDisplay
-          className="shrink-0 font-mono text-[0.66rem] text-slate-500 tabular-nums"
-          value={section.timestamp}
-          options={{ day: "2-digit", hour: "2-digit", minute: "2-digit", month: "2-digit" }}
-        />
-        <span
-          className="min-w-0 flex-1 truncate font-semibold text-[0.7rem] text-sky-100 tracking-[0.08em]"
-          title={section.title}
-        >
-          {section.title}
-        </span>
-        <span className="shrink-0 text-[0.62rem] text-slate-500 tabular-nums">
-          {section.blocks.length} 块 · {lineCount} 行
-        </span>
-      </button>
-
-      <AnimatePresence initial={false}>
-        {expanded ? (
-          instant ? (
-            <div id={contentId} key="section-content">
-              {blocksContent}
-            </div>
-          ) : (
-            <motion.div
-              id={contentId}
-              key="section-content"
-              initial={{ opacity: 0, y: reduceMotion ? 0 : -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: reduceMotion ? 0 : -4 }}
-              transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
-            >
-              {blocksContent}
-            </motion.div>
-          )
-        ) : null}
-      </AnimatePresence>
-    </article>
-  )
-}
-
-function LogBlockItem({
-  block,
-  currentLineId,
-  expanded,
-  instant,
-  nested,
-  reduceMotion,
-  search,
-  searchActive,
-  onToggle,
-}: {
-  block: LogBlock
-  currentLineId: string | null
-  expanded: boolean
-  instant: boolean
-  nested: boolean
-  reduceMotion: boolean
-  search: string
-  searchActive: boolean
   onToggle: () => void
-}) {
-  const linesContent = (
-    <div className="min-w-max pb-2 font-mono text-[0.72rem] text-slate-300 leading-5.5">
-      {block.lines.map((line) => (
-        <LogLine
-          key={line.id}
-          line={line}
-          current={line.id === currentLineId}
-          nested={nested}
-          search={search}
-          searchActive={searchActive}
-        />
-      ))}
-    </div>
-  )
+}
+
+/** Renders a logger.hr level 0 banner as a collapsible outer section row. */
+export function LogSectionHeader({ section, expanded, onToggle }: LogSectionHeaderProps) {
+  const lineCount = section.blocks.reduce((total, block) => total + block.lines.length, 0)
   return (
-    <article
+    <button
+      className="flex min-h-11 w-full items-center gap-2.5 border-blue-300/10 border-y bg-slate-900/97 px-4 text-left shadow-[0_10px_24px_-22px_rgba(56,189,248,0.8)] backdrop-blur-xl transition-colors hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-blue-400 focus-visible:-outline-offset-2"
+      type="button"
+      aria-expanded={expanded}
+      onClick={onToggle}
+    >
+      <ChevronRight
+        className={cn(
+          "size-4 shrink-0 text-sky-300/65 transition-transform",
+          expanded && "rotate-90",
+        )}
+        aria-hidden="true"
+      />
+      <Layers3 className="size-3.5 shrink-0 text-sky-300/80" aria-hidden="true" />
+      <DateDisplay
+        className="shrink-0 font-mono text-[0.66rem] text-slate-500 tabular-nums"
+        value={section.timestamp}
+        options={{ day: "2-digit", hour: "2-digit", minute: "2-digit", month: "2-digit" }}
+      />
+      <span
+        className="min-w-0 flex-1 truncate font-semibold text-[0.7rem] text-sky-100 tracking-[0.08em]"
+        title={section.title}
+      >
+        {section.title}
+      </span>
+      <span className="shrink-0 text-[0.62rem] text-slate-500 tabular-nums">
+        {section.blocks.length} 块 · {lineCount} 行
+      </span>
+    </button>
+  )
+}
+
+interface LogBlockHeaderProps {
+  block: LogBlock
+  expanded: boolean
+  nested: boolean
+  onToggle: () => void
+}
+
+/** Renders logger.hr levels 1–2; the virtual viewport owns sticky positioning. */
+export function LogBlockHeader({ block, expanded, nested, onToggle }: LogBlockHeaderProps) {
+  return (
+    <div
       className={cn(
         "relative",
         nested && "before:absolute before:inset-y-0 before:left-4 before:w-px before:bg-sky-300/12",
@@ -208,13 +100,12 @@ function LogBlockItem({
     >
       <button
         className={cn(
-          "sticky z-10 flex min-h-12 w-full items-center gap-3 bg-slate-950/95 px-4 text-left backdrop-blur-xl transition-colors hover:bg-slate-900 focus-visible:outline-2 focus-visible:outline-blue-400 focus-visible:-outline-offset-2",
-          nested ? "top-11 pl-7" : "top-0",
+          "flex min-h-12 w-full items-center gap-3 bg-slate-950/97 px-4 text-left backdrop-blur-xl transition-colors hover:bg-slate-900 focus-visible:outline-2 focus-visible:outline-blue-400 focus-visible:-outline-offset-2",
+          nested && "pl-7",
           block.hierarchyLevel === 2 && "min-h-10 bg-slate-950/92 pl-10",
         )}
         type="button"
         aria-expanded={expanded}
-        aria-controls={`${block.id}-content`}
         onClick={onToggle}
       >
         <ChevronRight
@@ -242,32 +133,11 @@ function LogBlockItem({
           {block.lines.length} 行
         </span>
       </button>
-      <AnimatePresence initial={false}>
-        {expanded ? (
-          instant ? (
-            <div id={`${block.id}-content`} className="overflow-hidden">
-              {linesContent}
-            </div>
-          ) : (
-            <motion.div
-              id={`${block.id}-content`}
-              key="content"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
-              className="overflow-hidden"
-            >
-              {linesContent}
-            </motion.div>
-          )
-        ) : null}
-      </AnimatePresence>
-    </article>
+    </div>
   )
 }
 
-function LogLine({
+export function LogLine({
   current,
   line,
   nested,

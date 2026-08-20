@@ -1,6 +1,7 @@
 import type { JanusApiClient } from "@janus/api-client/client"
 import { cn } from "@janus/ui/lib/utils"
 import { useQuery } from "@tanstack/react-query"
+import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual"
 import { ChevronsDownUp, ChevronsUpDown, Pause, Play, RefreshCw, Search } from "lucide-react"
 import { animate, useReducedMotion } from "motion/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -10,14 +11,92 @@ import {
   type LogBlock,
   type LogSection,
   type LogSourceLine,
-  mergeLogEntryTail,
+  mergeBoundedLogEntryTail,
   normalizeLogSearch,
+  type ParsedLogLine,
   parseLogSections,
   reconcileLogBlockExpansion,
 } from "../instance-detail-utils"
 import { LogViewportSkeleton } from "./instance-detail-skeletons"
-import { InstanceLogSection } from "./instance-log-view"
+import { LogBlockHeader, LogLine, LogSectionHeader } from "./instance-log-view"
 import { PageHeading } from "./instance-panel-primitives"
+
+const LOG_SESSION_LINE_LIMIT = 500
+const LOG_VIRTUAL_OVERSCAN = 12
+
+type LogVirtualRow =
+  | { expanded: boolean; key: string; kind: "section"; section: LogSection }
+  | { block: LogBlock; expanded: boolean; key: string; kind: "block"; nested: boolean }
+  | {
+      blockId: string
+      key: string
+      kind: "line"
+      line: ParsedLogLine
+      nested: boolean
+    }
+
+function buildLogVirtualRows(
+  sections: readonly LogSection[],
+  expandedSectionsById: Readonly<Record<string, boolean>>,
+  expandedByBlockId: Readonly<Record<string, boolean>>,
+): LogVirtualRow[] {
+  const rows: LogVirtualRow[] = []
+
+  for (const [sectionIndex, section] of sections.entries()) {
+    const sectionExpanded =
+      !section.explicit ||
+      (expandedSectionsById[section.id] ?? sectionIndex === sections.length - 1)
+    if (section.explicit) {
+      rows.push({
+        expanded: sectionExpanded,
+        key: `section:${section.id}`,
+        kind: "section",
+        section,
+      })
+    }
+    if (!sectionExpanded) {
+      continue
+    }
+
+    for (const [blockIndex, block] of section.blocks.entries()) {
+      const blockExpanded = expandedByBlockId[block.id] ?? blockIndex === section.blocks.length - 1
+      rows.push({
+        block,
+        expanded: blockExpanded,
+        key: `block:${block.id}`,
+        kind: "block",
+        nested: section.explicit,
+      })
+      if (!blockExpanded) {
+        continue
+      }
+      for (const line of block.lines) {
+        rows.push({
+          blockId: block.id,
+          key: `line:${line.id}`,
+          kind: "line",
+          line,
+          nested: section.explicit,
+        })
+      }
+    }
+  }
+
+  return rows
+}
+
+function estimateLogRowSize(row: LogVirtualRow | undefined) {
+  if (!row) {
+    return 24
+  }
+  if (row.kind === "section") {
+    return 44
+  }
+  if (row.kind === "block") {
+    return row.block.hierarchyLevel === 2 ? 40 : 48
+  }
+  return row.line.kind === "substage" ? 28 : 22
+}
 
 export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: string }) {
   const [paused, setPaused] = useState(false)
@@ -36,7 +115,6 @@ export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: st
   const resumeFollowingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const suppressFollowFromLayoutRef = useRef(false)
   const hasInitialScrollRef = useRef(false)
-  const instantToggleRef = useRef(false)
   const reduceMotion = useReducedMotion()
   const logs = useQuery({
     ...logsQueryOptions(api, instance, 200),
@@ -68,12 +146,58 @@ export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: st
     blocks.length > 0 &&
     blocks.every((block) => expandedById[block.id] === false) &&
     sections.every((section) => !section.explicit || expandedSectionsById[section.id] === false)
+  const virtualRows = useMemo(
+    () => buildLogVirtualRows(sections, expandedSectionsById, expandedById),
+    [expandedById, expandedSectionsById, sections],
+  )
+  const lineRowIndexById = useMemo(() => {
+    const indexes = new Map<string, number>()
+    for (const [index, row] of virtualRows.entries()) {
+      if (row.kind === "line") {
+        indexes.set(row.line.id, index)
+      }
+    }
+    return indexes
+  }, [virtualRows])
+  const headerRowIndexes = useMemo(
+    () =>
+      virtualRows.flatMap((row, index) =>
+        row.kind === "section" || row.kind === "block" ? [index] : [],
+      ),
+    [virtualRows],
+  )
+  const activeStickyIndexRef = useRef(-1)
+  const rangeExtractor = useCallback(
+    (range: Parameters<typeof defaultRangeExtractor>[0]) => {
+      const latestHeaderIndex = headerRowIndexes.findLast((index) => index <= range.startIndex)
+      activeStickyIndexRef.current =
+        latestHeaderIndex !== undefined && virtualRows[latestHeaderIndex]?.kind === "block"
+          ? latestHeaderIndex
+          : -1
+      const indexes = new Set(defaultRangeExtractor(range))
+      if (activeStickyIndexRef.current >= 0) {
+        indexes.add(activeStickyIndexRef.current)
+      }
+      return [...indexes].sort((left, right) => left - right)
+    },
+    [headerRowIndexes, virtualRows],
+  )
+  const rowVirtualizer = useVirtualizer({
+    count: virtualRows.length,
+    estimateSize: (index) => estimateLogRowSize(virtualRows[index]),
+    getItemKey: (index) => virtualRows[index]?.key ?? index,
+    getScrollElement: () => viewportRef.current,
+    overscan: LOG_VIRTUAL_OVERSCAN,
+    rangeExtractor,
+  })
 
   useEffect(() => {
     if (!latestTail) {
       return
     }
-    setSessionLines((history) => mergeLogEntryTail(history, latestTail))
+    setSessionLines((history) => {
+      return mergeBoundedLogEntryTail(history, latestTail, LOG_SESSION_LINE_LIMIT)
+    })
   }, [latestTail])
 
   useEffect(() => {
@@ -181,35 +305,27 @@ export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: st
         current[currentSectionId] === true ? current : { ...current, [currentSectionId]: true },
       )
     }
+  }, [currentBlockId, currentLineId, currentSectionId, searchActive])
 
-    // Expanding changes the target offset. Two animation frames make the measurement reliable
-    // after React commits and after WebKit completes layout.
-    let innerFrame = 0
-    const outerFrame = requestAnimationFrame(() => {
-      innerFrame = requestAnimationFrame(() => {
-        const viewport = viewportRef.current
-        const line = document.getElementById(currentLineId)
-        if (!viewport || !line) {
-          return
-        }
-
-        const viewportRect = viewport.getBoundingClientRect()
-        const lineRect = line.getBoundingClientRect()
-        const targetTop =
-          viewport.scrollTop +
-          lineRect.top -
-          viewportRect.top -
-          viewport.clientHeight / 2 +
-          lineRect.height / 2
-        scrollViewportTo(targetTop, true)
-      })
-    })
-
-    return () => {
-      cancelAnimationFrame(outerFrame)
-      cancelAnimationFrame(innerFrame)
+  useEffect(() => {
+    if (!searchActive || !currentLineId) {
+      return
     }
-  }, [currentBlockId, currentLineId, currentSectionId, scrollViewportTo, searchActive])
+    const rowIndex = lineRowIndexById.get(currentLineId)
+    if (rowIndex === undefined) {
+      return
+    }
+
+    // Virtual rows outside the viewport do not have DOM nodes. TanStack Virtual's measured or
+    // estimated offset lets Motion animate directly to a search result without mounting all rows.
+    const frame = requestAnimationFrame(() => {
+      const target = rowVirtualizer.getOffsetForIndex(rowIndex, "center")
+      if (target) {
+        scrollViewportTo(target[0], true)
+      }
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [currentLineId, lineRowIndexById, rowVirtualizer, scrollViewportTo, searchActive])
 
   useEffect(
     () => () => {
@@ -226,11 +342,6 @@ export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: st
     },
     [stopScrollAnimation],
   )
-
-  // Reset the one-shot flag after the commit so only the batched toggleAll render reads `true`.
-  useEffect(() => {
-    instantToggleRef.current = false
-  })
 
   function navigateMatch(direction: 1 | -1) {
     if (matches.length === 0) {
@@ -282,22 +393,18 @@ export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: st
     }
 
     prepareDisclosureToggle()
-    instantToggleRef.current = true
     setExpandedById(Object.fromEntries(blocks.map((block) => [block.id, allCollapsed] as const)))
     setExpandedSectionsById(
       Object.fromEntries(sections.map((section) => [section.id, allCollapsed] as const)),
     )
 
     if (allCollapsed) {
-      // Wait for Motion's disclosure animation to expose the final scrollHeight. Restoring
-      // following then reuses the Safari-safe scroll effect instead of measuring mid-layout.
-      resumeFollowingTimerRef.current = setTimeout(
-        () => {
-          resumeFollowingTimerRef.current = null
-          setFollowing(true)
-        },
-        reduceMotion ? 0 : 220,
-      )
+      // Log disclosures intentionally have no height animation. Waiting one frame is enough for
+      // React to commit the bounded 500-line window before the follow effect measures scrollHeight.
+      resumeFollowingTimerRef.current = setTimeout(() => {
+        resumeFollowingTimerRef.current = null
+        setFollowing(true)
+      }, 0)
     }
   }
 
@@ -430,23 +537,59 @@ export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: st
           }}
         >
           {blocks.length > 0 ? (
-            <div className="min-w-full divide-y divide-white/8 py-1">
-              {sections.map((section, index) => {
-                const expanded = expandedSectionsById[section.id] ?? index === sections.length - 1
+            <div
+              className="relative min-w-full"
+              style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+                const row = virtualRows[virtualItem.index]
+                if (!row) {
+                  return null
+                }
+                const activeSticky =
+                  row.kind === "block" && virtualItem.index === activeStickyIndexRef.current
+
                 return (
-                  <InstanceLogSection
-                    key={section.id}
-                    section={section}
-                    currentLineId={currentMatch?.lineId ?? null}
-                    expanded={expanded}
-                    expandedByBlockId={expandedById}
-                    instant={instantToggleRef.current}
-                    reduceMotion={Boolean(reduceMotion)}
-                    search={search}
-                    searchActive={searchActive}
-                    onToggleBlock={toggleBlock}
-                    onToggleSection={() => toggleSection(section, expanded)}
-                  />
+                  <div
+                    key={virtualItem.key}
+                    ref={rowVirtualizer.measureElement}
+                    data-index={virtualItem.index}
+                    className={cn("left-0 w-full", activeSticky && "z-30")}
+                    style={
+                      activeSticky
+                        ? { position: "sticky", top: 0 }
+                        : {
+                            position: "absolute",
+                            top: 0,
+                            transform: `translateY(${virtualItem.start}px)`,
+                          }
+                    }
+                  >
+                    {row.kind === "section" ? (
+                      <LogSectionHeader
+                        section={row.section}
+                        expanded={row.expanded}
+                        onToggle={() => toggleSection(row.section, row.expanded)}
+                      />
+                    ) : row.kind === "block" ? (
+                      <LogBlockHeader
+                        block={row.block}
+                        expanded={row.expanded}
+                        nested={row.nested}
+                        onToggle={() => toggleBlock(row.block, row.expanded)}
+                      />
+                    ) : (
+                      <div className="min-w-max font-mono text-[0.72rem] text-slate-300 leading-5.5">
+                        <LogLine
+                          line={row.line}
+                          current={row.line.id === currentMatch?.lineId}
+                          nested={row.nested}
+                          search={search}
+                          searchActive={searchActive}
+                        />
+                      </div>
+                    )}
+                  </div>
                 )
               })}
             </div>
@@ -463,7 +606,7 @@ export function LogsPanel({ api, instance }: { api: JanusApiClient; instance: st
             {paused ? "已暂停轮询" : "每 2 秒刷新"} · {following ? "自动跟随" : "已离开末尾"}
           </span>
           <span>
-            会话缓存 {rawLines.length} 行 · 后端窗口 {latestTail?.length ?? 0}
+            最近 {rawLines.length}/{LOG_SESSION_LINE_LIMIT} 行 · 后端窗口 {latestTail?.length ?? 0}
           </span>
         </footer>
       </section>

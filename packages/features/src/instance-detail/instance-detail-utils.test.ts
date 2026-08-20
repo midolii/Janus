@@ -3,6 +3,7 @@ import {
   findLogMatches,
   formatConfigValue,
   getConfigValue,
+  mergeBoundedLogEntryTail,
   mergeLogEntryTail,
   mergeLogTail,
   parseLogBlocks,
@@ -175,6 +176,18 @@ describe("instance detail utilities", () => {
     expect(mergeLogEntryTail([first, second], [second, third])).toEqual([first, second, third])
   })
 
+  it("keeps only the newest structured logs inside the session limit", () => {
+    const entries = Array.from({ length: 6 }, (_, index) => ({
+      content: `line-${index + 1}`,
+      timestampMs: index + 1,
+    }))
+
+    expect(mergeBoundedLogEntryTail(entries.slice(0, 4), entries.slice(3), 5)).toEqual(
+      entries.slice(1),
+    )
+    expect(mergeBoundedLogEntryTail(entries, [], 0)).toEqual([])
+  })
+
   it("keeps an observed log block expanded when a new block arrives", () => {
     const initial = reconcileLogBlockExpansion({}, ["earlier", "observed"])
 
@@ -195,5 +208,11 @@ describe("instance detail utilities", () => {
       new: true,
     })
     expect(reconcileLogBlockExpansion(current, ["earlier", "observed"])).toBe(current)
+  })
+
+  it("drops expansion state after a block leaves the bounded log window", () => {
+    expect(
+      reconcileLogBlockExpansion({ expired: true, observed: false }, ["observed", "new"]),
+    ).toEqual({ observed: false, new: true })
   })
 })

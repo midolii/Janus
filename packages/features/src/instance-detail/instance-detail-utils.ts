@@ -218,24 +218,23 @@ export function reconcileLogBlockExpansion(
   blockIds: readonly string[],
 ): Record<string, boolean> {
   if (blockIds.length === 0) {
-    return current
+    return Object.keys(current).length === 0 ? current : {}
   }
 
   const initializing = Object.keys(current).length === 0
-  let next = current
+  const next: Record<string, boolean> = {}
+  let changed = Object.keys(current).length !== blockIds.length
 
   for (const [index, blockId] of blockIds.entries()) {
     if (Object.hasOwn(current, blockId)) {
-      continue
+      next[blockId] = current[blockId] ?? false
+    } else {
+      next[blockId] = initializing ? index === blockIds.length - 1 : true
+      changed = true
     }
-
-    if (next === current) {
-      next = { ...current }
-    }
-    next[blockId] = initializing ? index === blockIds.length - 1 : true
   }
 
-  return next
+  return changed ? next : current
 }
 
 /**
@@ -305,6 +304,20 @@ export function mergeLogEntryTail(
   }
 
   return history.concat(incomingTail)
+}
+
+/** Merges a sliding structured tail and retains only the newest in-page session window. */
+export function mergeBoundedLogEntryTail(
+  history: LogSourceLine[],
+  incomingTail: LogSourceLine[],
+  limit: number,
+): LogSourceLine[] {
+  if (limit < 1) {
+    return []
+  }
+
+  const merged = mergeLogEntryTail(history, incomingTail)
+  return merged.length > limit ? merged.slice(-limit) : merged
 }
 
 function resolveLogTimestamps(
